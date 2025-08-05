@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Plus, Edit, Trash2, Users, MapPin } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Users, MapPin, FileText } from 'lucide-react';
 
 interface Property {
   id: number;
@@ -15,11 +15,40 @@ interface Property {
   created_at: string;
 }
 
+interface Contract {
+  id: number;
+  tenant_name: string;
+  property_name: string;
+  unit_number: string;
+  monthly_rent: number;
+  status: string;
+}
+
 const Properties: React.FC = () => {
   const { token } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [availableUnits, setAvailableUnits] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [contractFormData, setContractFormData] = useState({
+    propertyId: '',
+    unitId: '',
+    tenantId: '',
+    leaseDuration: 12,
+    contractStartDate: new Date().toISOString().split('T')[0],
+    contractEndDate: '',
+    monthlyRent: '',
+    deposit: '',
+    paymentTerm: 1,
+    rentStartDate: new Date().toISOString().split('T')[0],
+    rentEndDate: '',
+    eeuPayment: 0,
+    waterPayment: 0,
+    generatorPayment: 0,
+  });
   const [formData, setFormData] = useState({
     name: '',
     type: 'apartment',
@@ -35,6 +64,7 @@ const Properties: React.FC = () => {
 
   useEffect(() => {
     fetchProperties();
+    fetchTenants();
   }, [token]);
 
   const fetchProperties = async () => {
@@ -53,6 +83,129 @@ const Properties: React.FC = () => {
       console.error('Failed to fetch properties:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/tenants', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTenants(data.tenants);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tenants:', error);
+    }
+  };
+
+  const fetchPropertyUnits = async (propertyId: number) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/properties/${propertyId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const vacantUnits = data.property.units.filter((unit: any) => !unit.is_occupied);
+        setAvailableUnits(vacantUnits);
+      }
+    } catch (error) {
+      console.error('Failed to fetch property units:', error);
+    }
+  };
+
+  const handleCreateContract = (property: Property) => {
+    setSelectedProperty(property);
+    setContractFormData(prev => ({
+      ...prev,
+      propertyId: property.id.toString(),
+    }));
+    fetchPropertyUnits(property.id);
+    setShowContractModal(true);
+  };
+
+  const handleContractSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/contracts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(contractFormData),
+      });
+
+      if (response.ok) {
+        setShowContractModal(false);
+        resetContractForm();
+        fetchProperties(); // Refresh to update occupancy
+      }
+    } catch (error) {
+      console.error('Failed to create contract:', error);
+    }
+  };
+
+  const resetContractForm = () => {
+    setContractFormData({
+      propertyId: '',
+      unitId: '',
+      tenantId: '',
+      leaseDuration: 12,
+      contractStartDate: new Date().toISOString().split('T')[0],
+      contractEndDate: '',
+      monthlyRent: '',
+      deposit: '',
+      paymentTerm: 1,
+      rentStartDate: new Date().toISOString().split('T')[0],
+      rentEndDate: '',
+      eeuPayment: 0,
+      waterPayment: 0,
+      generatorPayment: 0,
+    });
+  };
+
+  const handleContractInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setContractFormData(prev => ({
+      ...prev,
+      [name]: name === 'leaseDuration' || name === 'paymentTerm' ? parseInt(value) : value,
+    }));
+
+    // Auto-calculate end dates
+    if (name === 'contractStartDate' || name === 'leaseDuration') {
+      const startDate = name === 'contractStartDate' ? new Date(value) : new Date(contractFormData.contractStartDate);
+      const duration = name === 'leaseDuration' ? parseInt(value) : contractFormData.leaseDuration;
+      
+      if (startDate && duration) {
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + duration);
+        setContractFormData(prev => ({
+          ...prev,
+          contractEndDate: endDate.toISOString().split('T')[0],
+          rentEndDate: endDate.toISOString().split('T')[0],
+        }));
+      }
+    }
+
+    // Auto-fill rent amount from selected unit
+    if (name === 'unitId' && value) {
+      const selectedUnit = availableUnits.find(unit => unit.id === parseInt(value));
+      if (selectedUnit) {
+        setContractFormData(prev => ({
+          ...prev,
+          monthlyRent: selectedUnit.monthly_rent.toString(),
+          deposit: selectedUnit.deposit.toString(),
+        }));
+      }
     }
   };
 
@@ -169,8 +322,15 @@ const Properties: React.FC = () => {
                 </div>
                 
                 <button className="flex items-center px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200">
-                  <Users className="h-4 w-4 mr-1" />
-                  View Tenants
+                  <FileText className="h-4 w-4 mr-1" />
+                  Create Contract
+                </button>
+                <button 
+                  onClick={() => handleCreateContract(property)}
+                  className="flex items-center px-3 py-1 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  New Contract
                 </button>
               </div>
             </div>
@@ -328,6 +488,269 @@ const Properties: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
+                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Contract Modal */}
+      {showContractModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full max-h-screen overflow-y-auto">
+              <form onSubmit={handleContractSubmit}>
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Create Contract - {selectedProperty?.name}
+                    </h3>
+                    
+                    <div className="space-y-6">
+                      {/* Basic Contract Info */}
+                      <div>
+                        <h4 className="text-md font-medium text-gray-800 mb-3">Contract Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Unit *
+                            </label>
+                            <select
+                              name="unitId"
+                              required
+                              value={contractFormData.unitId}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">Select a unit</option>
+                              {availableUnits.map((unit) => (
+                                <option key={unit.id} value={unit.id}>
+                                  Unit {unit.unit_number} - ${unit.monthly_rent}/month
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Tenant *
+                            </label>
+                            <select
+                              name="tenantId"
+                              required
+                              value={contractFormData.tenantId}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">Select a tenant</option>
+                              {tenants.map((tenant) => (
+                                <option key={tenant.id} value={tenant.id}>
+                                  {tenant.full_name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Lease Duration (months) *
+                            </label>
+                            <input
+                              type="number"
+                              name="leaseDuration"
+                              required
+                              min="1"
+                              value={contractFormData.leaseDuration}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Payment Term (months) *
+                            </label>
+                            <select
+                              name="paymentTerm"
+                              required
+                              value={contractFormData.paymentTerm}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value={1}>Monthly</option>
+                              <option value={3}>Quarterly</option>
+                              <option value={6}>Semi-Annual</option>
+                              <option value={12}>Annual</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Contract Start Date *
+                            </label>
+                            <input
+                              type="date"
+                              name="contractStartDate"
+                              required
+                              value={contractFormData.contractStartDate}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Contract End Date *
+                            </label>
+                            <input
+                              type="date"
+                              name="contractEndDate"
+                              required
+                              value={contractFormData.contractEndDate}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Financial Details */}
+                      <div>
+                        <h4 className="text-md font-medium text-gray-800 mb-3">Financial Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Monthly Rent *
+                            </label>
+                            <input
+                              type="number"
+                              name="monthlyRent"
+                              required
+                              step="0.01"
+                              value={contractFormData.monthlyRent}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Security Deposit *
+                            </label>
+                            <input
+                              type="number"
+                              name="deposit"
+                              required
+                              step="0.01"
+                              value={contractFormData.deposit}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              EEU Payment
+                            </label>
+                            <input
+                              type="number"
+                              name="eeuPayment"
+                              step="0.01"
+                              value={contractFormData.eeuPayment}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Water Payment
+                            </label>
+                            <input
+                              type="number"
+                              name="waterPayment"
+                              step="0.01"
+                              value={contractFormData.waterPayment}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Generator Payment
+                            </label>
+                            <input
+                              type="number"
+                              name="generatorPayment"
+                              step="0.01"
+                              value={contractFormData.generatorPayment}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Rent Period */}
+                      <div>
+                        <h4 className="text-md font-medium text-gray-800 mb-3">Rent Period</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Rent Start Date *
+                            </label>
+                            <input
+                              type="date"
+                              name="rentStartDate"
+                              required
+                              value={contractFormData.rentStartDate}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Rent End Date *
+                            </label>
+                            <input
+                              type="date"
+                              name="rentEndDate"
+                              required
+                              value={contractFormData.rentEndDate}
+                              onChange={handleContractInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Create Contract
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowContractModal(false);
+                      resetContractForm();
+                    }}
                     className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     Cancel

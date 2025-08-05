@@ -73,14 +73,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         <div className="absolute bottom-0 w-full p-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-            <h3 className="text-sm font-medium text-yellow-800">Trial Period</h3>
-            <p className="text-xs text-yellow-600 mt-1">
-              {user?.subscriptionStatus === 'trial' && (
-                <>Expires: {new Date(user.trialEndDate).toLocaleDateString()}</>
-              )}
-            </p>
-          </div>
+          {user?.subscriptionStatus === 'trial' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <h3 className="text-sm font-medium text-yellow-800">Trial Period</h3>
+              <p className="text-xs text-yellow-600 mt-1">
+                Expires: {new Date(user.trialEndDate).toLocaleDateString()}
+              </p>
+              <button className="mt-2 text-xs text-yellow-800 hover:text-yellow-900 font-medium">
+                Upgrade Now →
+              </button>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"

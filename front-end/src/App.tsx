@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { Toaster } from './components/ui/Toaster';
+import { ToastProvider } from './components/ui/Toast';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -18,32 +18,33 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Routes>
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/properties" element={<Properties />} />
-                      <Route path="/tenants" element={<Tenants />} />
-                      <Route path="/payments" element={<Payments />} />
-                      <Route path="/maintenance" element={<Maintenance />} />
-                      <Route path="/documents" element={<Documents />} />
-                      <Route path="/settings" element={<Settings />} />
-                    </Routes>
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </div>
-        <Toaster />
+        <ToastProvider>
+          <div className="min-h-screen bg-gray-50">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Routes>
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/properties" element={<Properties />} />
+                        <Route path="/tenants" element={<Tenants />} />
+                        <Route path="/payments" element={<Payments />} />
+                        <Route path="/maintenance" element={<Maintenance />} />
+                        <Route path="/documents" element={<Documents />} />
+                        <Route path="/settings" element={<Settings />} />
+                      </Routes>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </div>
+        </ToastProvider>
       </AuthProvider>
     </Router>
   );
