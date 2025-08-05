@@ -1,15 +1,25 @@
 const express = require('express');
+const { body } = require('express-validator');
+const {
+  createMaintenanceRequest,
+  getMaintenanceRequests,
+  updateMaintenanceRequest,
+  deleteMaintenanceRequest
+} = require('../controllers/maintenanceController');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Placeholder routes - to be implemented
-router.get('/', authenticateToken, (req, res) => {
-  res.json({ requests: [] });
-});
+const maintenanceValidation = [
+  body('propertyId').isInt().withMessage('Valid property ID is required'),
+  body('title').notEmpty().withMessage('Title is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('priority').isIn(['low', 'medium', 'high', 'urgent']).withMessage('Valid priority is required'),
+];
 
-router.post('/', authenticateToken, (req, res) => {
-  res.json({ message: 'Maintenance request created successfully' });
-});
+router.post('/', authenticateToken, maintenanceValidation, createMaintenanceRequest);
+router.get('/', authenticateToken, getMaintenanceRequests);
+router.put('/:id', authenticateToken, updateMaintenanceRequest);
+router.delete('/:id', authenticateToken, deleteMaintenanceRequest);
 
 module.exports = router;
