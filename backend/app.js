@@ -25,6 +25,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const documentRoutes = require('./routes/document');
 const notificationRoutes = require('./routes/notification');
 const subscriptionRoutes = require('./routes/subscription');
+const { generateSystemNotifications } = require('./controllers/notificationController');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -37,6 +38,9 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+
+// Generate system notifications every hour
+setInterval(generateSystemNotifications, 60 * 60 * 1000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
