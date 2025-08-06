@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db/connection');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 const generateToken = (userId, organizationId) => {
   return jwt.sign(
@@ -56,6 +57,14 @@ const register = async (req, res) => {
 
     const userId = userResult.insertId;
     const token = generateToken(userId, organizationId);
+
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(email, fullName, organizationName);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail registration if email fails
+    }
 
     res.status(201).json({
       message: 'Registration successful',

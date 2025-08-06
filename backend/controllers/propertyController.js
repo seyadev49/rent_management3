@@ -93,7 +93,12 @@ const getPropertyById = async (req, res) => {
     }
 
     const [units] = await db.execute(
-      'SELECT * FROM property_units WHERE property_id = ? AND is_active = TRUE ORDER BY unit_number',
+      'SELECT pu.*, 
+              CASE WHEN rc.id IS NOT NULL THEN TRUE ELSE FALSE END as is_occupied
+       FROM property_units pu
+       LEFT JOIN rental_contracts rc ON pu.id = rc.unit_id AND rc.status = "active"
+       WHERE pu.property_id = ? AND pu.is_active = TRUE 
+       ORDER BY pu.unit_number',
       [id]
     );
 

@@ -1,15 +1,18 @@
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const {
+  upload,
+  uploadDocument,
+  getDocuments,
+  deleteDocument,
+  downloadDocument
+} = require('../controllers/documentController');
 
 const router = express.Router();
 
-// Placeholder routes - to be implemented
-router.get('/', authenticateToken, (req, res) => {
-  res.json({ documents: [] });
-});
-
-router.post('/', authenticateToken, (req, res) => {
-  res.json({ message: 'Document uploaded successfully' });
-});
+router.get('/', authenticateToken, getDocuments);
+router.post('/upload', authenticateToken, upload.single('document'), uploadDocument);
+router.get('/download/:id', authenticateToken, downloadDocument);
+router.delete('/:id', authenticateToken, deleteDocument);
 
 module.exports = router;

@@ -23,6 +23,8 @@ const paymentRoutes = require('./routes/payment');
 const maintenanceRoutes = require('./routes/maintenance');
 const dashboardRoutes = require('./routes/dashboard');
 const documentRoutes = require('./routes/document');
+const notificationRoutes = require('./routes/notification');
+const subscriptionRoutes = require('./routes/subscription');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -33,6 +35,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

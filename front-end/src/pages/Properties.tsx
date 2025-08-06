@@ -113,7 +113,7 @@ const Properties: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        const vacantUnits = data.property.units.filter((unit: any) => !unit.is_occupied);
+        const vacantUnits = data.property.units?.filter((unit: any) => !unit.is_occupied) || [];
         setAvailableUnits(vacantUnits);
       }
     } catch (error) {

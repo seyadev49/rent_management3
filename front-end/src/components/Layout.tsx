@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationDropdown from './NotificationDropdown';
+import UpgradeModal from './UpgradeModal';
 import {
   Home,
   Building2,
@@ -24,6 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -79,7 +82,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p className="text-xs text-yellow-600 mt-1">
                 Expires: {new Date(user.trialEndDate).toLocaleDateString()}
               </p>
-              <button className="mt-2 text-xs text-yellow-800 hover:text-yellow-900 font-medium">
+              <button 
+                onClick={() => setShowUpgradeModal(true)}
+                className="mt-2 text-xs text-yellow-800 hover:text-yellow-900 font-medium"
+              >
                 Upgrade Now →
               </button>
             </div>
@@ -127,10 +133,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
 
             <div className="flex items-center space-x-4">
-              <button className="relative text-gray-600 hover:text-gray-900">
-                <Bell className="h-6 w-6" />
-                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-              </button>
+              <NotificationDropdown />
               <div className="flex items-center space-x-3">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
@@ -151,6 +154,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+      
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+      />
     </div>
   );
 };
