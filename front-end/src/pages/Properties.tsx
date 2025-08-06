@@ -323,7 +323,7 @@ const Properties: React.FC = () => {
                 
                 <button className="flex items-center px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200">
                   <FileText className="h-4 w-4 mr-1" />
-                  Create Contract
+                  create a unit.
                 </button>
                 <button 
                   onClick={() => handleCreateContract(property)}

@@ -1,6 +1,7 @@
 -- SaaS Rent Management System Database Schema
 
 -- Organizations table (for multi-tenancy)
+
 CREATE TABLE organizations (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -16,6 +17,7 @@ CREATE TABLE organizations (
 );
 
 -- Users table
+
 CREATE TABLE users (
     id INT PRIMARY KEY AUTO_INCREMENT,
     organization_id INT,

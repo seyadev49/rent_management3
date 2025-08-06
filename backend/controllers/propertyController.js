@@ -61,9 +61,9 @@ const getProperties = async (req, res) => {
   try {
     const [properties] = await db.execute(
       `SELECT p.*, 
-              COUNT(pu.id) as total_units,
-              COUNT(CASE WHEN pu.is_occupied = TRUE THEN 1 END) as occupied_units,
-              COUNT(CASE WHEN pu.is_occupied = FALSE THEN 1 END) as vacant_units
+              COUNT(pu.id) AS total_units,
+              SUM(CASE WHEN pu.is_occupied = TRUE THEN 1 ELSE 0 END) AS occupied_units,
+              SUM(CASE WHEN pu.is_occupied = FALSE THEN 1 ELSE 0 END) AS vacant_units
        FROM properties p
        LEFT JOIN property_units pu ON p.id = pu.property_id AND pu.is_active = TRUE
        WHERE p.organization_id = ? AND p.is_active = TRUE
@@ -79,10 +79,11 @@ const getProperties = async (req, res) => {
   }
 };
 
+
 const getPropertyById = async (req, res) => {
   try {
     const { id } = req.params;
-
+console.log(id, req.user.organization_id);
     const [properties] = await db.execute(
       'SELECT * FROM properties WHERE id = ? AND organization_id = ?',
       [id, req.user.organization_id]
@@ -92,19 +93,22 @@ const getPropertyById = async (req, res) => {
       return res.status(404).json({ message: 'Property not found' });
     }
 
-    const [units] = await db.execute(
-      'SELECT pu.*, 
-              CASE WHEN rc.id IS NOT NULL THEN TRUE ELSE FALSE END as is_occupied
-       FROM property_units pu
-       LEFT JOIN rental_contracts rc ON pu.id = rc.unit_id AND rc.status = "active"
-       WHERE pu.property_id = ? AND pu.is_active = TRUE 
-       ORDER BY pu.unit_number',
-      [id]
-    );
+const [units] = await db.execute(
+  `
+  SELECT pu.*, 
+         CASE WHEN rc.id IS NOT NULL THEN TRUE ELSE FALSE END as is_occupied
+  FROM property_units pu
+  LEFT JOIN rental_contracts rc ON pu.id = rc.unit_id AND rc.status = 'active'
+  WHERE pu.property_id = ? AND pu.is_active = TRUE 
+  ORDER BY pu.unit_number
+  `,
+  [id]
+);
 
     const property = properties[0];
     property.units = units;
-
+//console log unirts
+    console.log('Units:', units);
     res.json({ property });
   } catch (error) {
     console.error('Get property error:', error);
