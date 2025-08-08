@@ -10,15 +10,13 @@ const createProperty = async (req, res) => {
       subcity,
       woreda,
       description,
-      totalUnits,
       amenities,
-      units
     } = req.body;
 
     // Create property
     const [propertyResult] = await db.execute(
       `INSERT INTO properties (organization_id, landlord_id, name, type, address, city, subcity, woreda, description, total_units, amenities) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
       [
         req.user.organization_id,
         req.user.id,
@@ -29,27 +27,14 @@ const createProperty = async (req, res) => {
         subcity,
         woreda,
         description,
-        totalUnits,
         JSON.stringify(amenities || [])
       ]
     );
 
-    const propertyId = propertyResult.insertId;
-
-    // Create property units
-    if (units && units.length > 0) {
-      for (const unit of units) {
-        await db.execute(
-          `INSERT INTO property_units (property_id, unit_number, floor_number, room_count, monthly_rent, deposit) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [propertyId, unit.unitNumber, unit.floorNumber, unit.roomCount, unit.monthlyRent, unit.deposit]
-        );
-      }
-    }
 
     res.status(201).json({
       message: 'Property created successfully',
-      propertyId
+      propertyId: propertyResult.insertId
     });
   } catch (error) {
     console.error('Create property error:', error);

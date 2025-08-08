@@ -17,6 +17,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Import routes
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/property');
+const unitRoutes = require('./routes/unit');
 const tenantRoutes = require('./routes/tenant');
 const contractRoutes = require('./routes/contract');
 const paymentRoutes = require('./routes/payment');
@@ -30,6 +31,7 @@ const { generateSystemNotifications } = require('./controllers/notificationContr
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
+app.use('/api/units', unitRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/payments', paymentRoutes);

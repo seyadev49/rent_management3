@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Plus, Edit, Trash2, Users, MapPin, FileText } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Users, MapPin, FileText, Home } from 'lucide-react';
 
 interface Property {
   id: number;
@@ -15,6 +15,16 @@ interface Property {
   created_at: string;
 }
 
+interface Unit {
+  id: number;
+  unit_number: string;
+  floor_number?: number;
+  room_count?: number;
+  monthly_rent: number;
+  deposit: number;
+  is_occupied: boolean;
+  tenant_name?: string;
+}
 interface Contract {
   id: number;
   tenant_name: string;
@@ -27,12 +37,23 @@ interface Contract {
 const Properties: React.FC = () => {
   const { token } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
-  const [showContractModal, setShowContractModal] = useState(false);
+  const [showUnitsModal, setShowUnitsModal] = useState(false);
+  const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [propertyUnits, setPropertyUnits] = useState<Unit[]>([]);
+  const [showContractModal, setShowContractModal] = useState(false);
   const [availableUnits, setAvailableUnits] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [unitFormData, setUnitFormData] = useState({
+    propertyId: '',
+    unitNumber: '',
+    floorNumber: '',
+    roomCount: '',
+    monthlyRent: '',
+    deposit: '',
+  });
   const [contractFormData, setContractFormData] = useState({
     propertyId: '',
     unitId: '',
@@ -86,6 +107,22 @@ const Properties: React.FC = () => {
     }
   };
 
+  const fetchPropertyUnits = async (propertyId: number) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/units?propertyId=${propertyId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPropertyUnits(data.units);
+      }
+    } catch (error) {
+      console.error('Failed to fetch property units:', error);
+    }
+  };
   const fetchTenants = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/tenants', {
@@ -103,9 +140,9 @@ const Properties: React.FC = () => {
     }
   };
 
-  const fetchPropertyUnits = async (propertyId: number) => {
+  const fetchAvailableUnits = async (propertyId: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/properties/${propertyId}`, {
+      const response = await fetch(`http://localhost:5000/api/units?propertyId=${propertyId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -113,7 +150,7 @@ const Properties: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        const vacantUnits = data.property.units?.filter((unit: any) => !unit.is_occupied) || [];
+        const vacantUnits = data.units?.filter((unit: any) => !unit.is_occupied) || [];
         setAvailableUnits(vacantUnits);
       }
     } catch (error) {
@@ -121,13 +158,70 @@ const Properties: React.FC = () => {
     }
   };
 
+  const handleViewUnits = (property: Property) => {
+    setSelectedProperty(property);
+    fetchPropertyUnits(property.id);
+    setShowUnitsModal(true);
+  };
+
+  const handleAddUnit = (property: Property) => {
+    setSelectedProperty(property);
+    setUnitFormData(prev => ({
+      ...prev,
+      propertyId: property.id.toString(),
+    }));
+    setShowAddUnitModal(true);
+  };
+
+  const handleUnitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/units', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...unitFormData,
+          floorNumber: unitFormData.floorNumber ? parseInt(unitFormData.floorNumber) : null,
+          roomCount: unitFormData.roomCount ? parseInt(unitFormData.roomCount) : null,
+          monthlyRent: parseFloat(unitFormData.monthlyRent),
+          deposit: parseFloat(unitFormData.deposit),
+        }),
+      });
+
+      if (response.ok) {
+        setShowAddUnitModal(false);
+        resetUnitForm();
+        fetchProperties(); // Refresh to update unit counts
+        if (showUnitsModal && selectedProperty) {
+          fetchPropertyUnits(selectedProperty.id); // Refresh units list if modal is open
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create unit:', error);
+    }
+  };
+
+  const resetUnitForm = () => {
+    setUnitFormData({
+      propertyId: '',
+      unitNumber: '',
+      floorNumber: '',
+      roomCount: '',
+      monthlyRent: '',
+      deposit: '',
+    });
+  };
   const handleCreateContract = (property: Property) => {
     setSelectedProperty(property);
     setContractFormData(prev => ({
       ...prev,
       propertyId: property.id.toString(),
     }));
-    fetchPropertyUnits(property.id);
+    fetchAvailableUnits(property.id);
     setShowContractModal(true);
   };
 
@@ -173,6 +267,13 @@ const Properties: React.FC = () => {
     });
   };
 
+  const handleUnitInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setUnitFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
   const handleContractInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setContractFormData(prev => ({
@@ -321,15 +422,30 @@ const Properties: React.FC = () => {
                   </button>
                 </div>
                 
-                <button className="flex items-center px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200">
-                  <FileText className="h-4 w-4 mr-1" />
-                  create a unit.
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => handleViewUnits(property)}
+                    className="flex items-center px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                  >
+                    <Home className="h-4 w-4 mr-1" />
+                    View Units
+                  </button>
+                  <button 
+                    onClick={() => handleAddUnit(property)}
+                    className="flex items-center px-3 py-1 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Unit
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-gray-200">
                 <button 
                   onClick={() => handleCreateContract(property)}
-                  className="flex items-center px-3 py-1 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                  className="w-full flex items-center justify-center px-3 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
+                  <FileText className="h-4 w-4 mr-1" />
                   New Contract
                 </button>
               </div>
@@ -353,6 +469,267 @@ const Properties: React.FC = () => {
         </div>
       )}
 
+      {/* View Units Modal */}
+      {showUnitsModal && selectedProperty && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Units - {selectedProperty.name}
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleAddUnit(selectedProperty)}
+                      className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Unit
+                    </button>
+                    <button
+                      onClick={() => setShowUnitsModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Unit
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Details
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rent
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tenant
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {propertyUnits.map((unit) => (
+                        <tr key={unit.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              Unit {unit.unit_number}
+                            </div>
+                            {unit.floor_number && (
+                              <div className="text-sm text-gray-500">
+                                Floor {unit.floor_number}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {unit.room_count && (
+                              <div className="text-sm text-gray-900">
+                                {unit.room_count} rooms
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              ${unit.monthly_rent}/mo
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Deposit: ${unit.deposit}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              unit.is_occupied
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {unit.is_occupied ? 'Occupied' : 'Vacant'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {unit.tenant_name || '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end space-x-2">
+                              <button className="text-indigo-600 hover:text-indigo-900">
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              {!unit.is_occupied && (
+                                <button className="text-red-600 hover:text-red-900">
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {propertyUnits.length === 0 && (
+                  <div className="text-center py-8">
+                    <Home className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No units yet</h3>
+                    <p className="text-gray-600 mb-4">Add units to this property to get started</p>
+                    <button
+                      onClick={() => handleAddUnit(selectedProperty)}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Unit
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Unit Modal */}
+      {showAddUnitModal && selectedProperty && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <form onSubmit={handleUnitSubmit}>
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Add Unit - {selectedProperty.name}
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Unit Number *
+                        </label>
+                        <input
+                          type="text"
+                          name="unitNumber"
+                          required
+                          value={unitFormData.unitNumber}
+                          onChange={handleUnitInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="e.g., 101, A1, etc."
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Floor Number
+                          </label>
+                          <input
+                            type="number"
+                            name="floorNumber"
+                            min="0"
+                            value={unitFormData.floorNumber}
+                            onChange={handleUnitInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Floor"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Room Count
+                          </label>
+                          <input
+                            type="number"
+                            name="roomCount"
+                            min="1"
+                            value={unitFormData.roomCount}
+                            onChange={handleUnitInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Rooms"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Monthly Rent *
+                          </label>
+                          <input
+                            type="number"
+                            name="monthlyRent"
+                            required
+                            step="0.01"
+                            min="0"
+                            value={unitFormData.monthlyRent}
+                            onChange={handleUnitInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Security Deposit *
+                          </label>
+                          <input
+                            type="number"
+                            name="deposit"
+                            required
+                            step="0.01"
+                            min="0"
+                            value={unitFormData.deposit}
+                            onChange={handleUnitInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Add Unit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddUnitModal(false);
+                      resetUnitForm();
+                    }}
+                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Add Property Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -446,20 +823,6 @@ const Properties: React.FC = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Total Units
-                        </label>
-                        <input
-                          type="number"
-                          name="totalUnits"
-                          min="1"
-                          required
-                          value={formData.totalUnits}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -473,6 +836,12 @@ const Properties: React.FC = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Property description"
                         />
+                      </div>
+
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm text-blue-800">
+                          <strong>Note:</strong> After creating the property, you can add individual units with specific details like rent amounts, floor numbers, and room counts.
+                        </p>
                       </div>
                     </div>
                   </div>
