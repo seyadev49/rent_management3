@@ -91,15 +91,23 @@ const getPayments = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
 
+    if (!id || !status) {
+      return res.status(400).json({ message: 'Payment ID and status are required' });
+    }
+
     await db.execute(
       'UPDATE payments SET status = ?, notes = ? WHERE id = ? AND organization_id = ?',
-      [status, notes, id, req.user.organization_id]
+      [
+        status,
+        notes !== undefined ? notes : null,
+        id,
+        req.user?.organization_id ?? null
+      ]
     );
 
     res.json({ message: 'Payment status updated successfully' });

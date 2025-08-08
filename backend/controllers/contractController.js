@@ -19,50 +19,78 @@ const createContract = async (req, res) => {
       generatorPayment = 0
     } = req.body;
 
-    // Calculate total amount
-    const totalAmount = (monthlyRent * leaseDuration) + parseFloat(eeuPayment) + parseFloat(waterPayment) + parseFloat(generatorPayment);
+    // Defensive parsing -> ensure numbers are numbers
+    const monthlyRentNum = parseFloat(monthlyRent) || 0;
+    const leaseDurationNum = parseInt(leaseDuration, 10) || 0;
+    const eeuNum = parseFloat(eeuPayment) || 0;
+    const waterNum = parseFloat(waterPayment) || 0;
+    const genNum = parseFloat(generatorPayment) || 0;
 
-    // Check if unit is already occupied
-    const [existingContracts] = await db.execute(
-      'SELECT id FROM rental_contracts WHERE unit_id = ? AND status = "active"',
-      [unitId]
-    );
+    const totalAmount = (monthlyRentNum * leaseDurationNum) + eeuNum + waterNum + genNum;
+
+    // --- DEBUG: log types & values BEFORE queries ---
+    console.log('createContract payload:', {
+      propertyId, unitId, tenantId,
+      leaseDurationNum, contractStartDate, contractEndDate,
+      monthlyRentNum, deposit, paymentTerm, rentStartDate, rentEndDate,
+      eeuNum, waterNum, genNum, totalAmount,
+      organization_id: req.user && req.user.organization_id,
+      user_id: req.user && req.user.id
+    });
+
+    // Defensive check: ensure query is a string and params array is correct
+    const checkQuery = "SELECT id FROM rental_contracts WHERE unit_id = ? AND status = 'active'";
+    const checkParams = [unitId];
+
+    console.log('About to run checkQuery ->', { checkQuery, checkParams });
+    if (typeof checkQuery !== 'string') throw new Error('checkQuery is not a string');
+    if (!Array.isArray(checkParams)) throw new Error('checkParams is not an array');
+
+    const [existingContracts] = await db.execute(checkQuery, checkParams);
 
     if (existingContracts.length > 0) {
       return res.status(400).json({ message: 'Unit is already occupied' });
     }
 
-    const [result] = await db.execute(
-      `INSERT INTO rental_contracts (
+    const insertQuery = `
+      INSERT INTO rental_contracts (
         organization_id, property_id, unit_id, tenant_id, landlord_id,
         lease_duration, contract_start_date, contract_end_date, monthly_rent, deposit,
         payment_term, rent_start_date, rent_end_date, total_amount,
         eeu_payment, water_payment, generator_payment
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        req.user.organization_id, propertyId, unitId, tenantId, req.user.id,
-        leaseDuration, contractStartDate, contractEndDate, monthlyRent, deposit,
-        paymentTerm, rentStartDate, rentEndDate, totalAmount,
-        eeuPayment, waterPayment, generatorPayment
-      ]
-    );
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const insertParams = [
+      req.user.organization_id, propertyId, unitId, tenantId, req.user.id,
+      leaseDurationNum, contractStartDate, contractEndDate, monthlyRentNum, deposit,
+      paymentTerm, rentStartDate, rentEndDate, totalAmount,
+      eeuNum, waterNum, genNum
+    ];
+
+    console.log('About to run insertQuery ->', { insertQuery: insertQuery.trim().slice(0,200) + '...', insertParams });
+    const [result] = await db.execute(insertQuery, insertParams);
 
     // Update unit as occupied
-    await db.execute(
-      'UPDATE property_units SET is_occupied = TRUE WHERE id = ?',
-      [unitId]
-    );
+    const updateQuery = 'UPDATE property_units SET is_occupied = TRUE WHERE id = ?';
+    console.log('About to run updateQuery ->', { updateQuery, params: [unitId] });
+    await db.execute(updateQuery, [unitId]);
 
     res.status(201).json({
       message: 'Contract created successfully',
       contractId: result.insertId
     });
+
   } catch (error) {
+    // Helpful debug logging
     console.error('Create contract error:', error);
+    if (error && error.sql) {
+      console.error('SQL that failed:', error.sql);
+      console.error('SQL message:', error.sqlMessage);
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 const getContracts = async (req, res) => {
   try {
     const { status, propertyId, tenantId } = req.query;

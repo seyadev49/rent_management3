@@ -13,3 +13,4 @@ CREATE TABLE IF NOT EXISTS subscription_history (
     
     FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
 );
+

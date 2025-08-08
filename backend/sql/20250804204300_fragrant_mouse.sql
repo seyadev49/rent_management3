@@ -17,7 +17,6 @@ CREATE TABLE organizations (
 );
 
 -- Users table
-
 CREATE TABLE users (
     id INT PRIMARY KEY AUTO_INCREMENT,
     organization_id INT,
