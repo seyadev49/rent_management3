@@ -1,229 +1,280 @@
--- SaaS Rent Management System Database Schema
+-- rent_management.organizations definition
 
--- Organizations table (for multi-tenancy)
-
-CREATE TABLE organizations (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(20),
-    address TEXT,
-    trial_start_date DATE NOT NULL,
-    trial_end_date DATE NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    subscription_status ENUM('trial', 'active', 'suspended', 'cancelled') DEFAULT 'trial',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+CREATE TABLE "organizations" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "name" varchar(255) NOT NULL,
+  "email" varchar(255) NOT NULL,
+  "phone" varchar(20) DEFAULT NULL,
+  "address" text,
+  "trial_start_date" date NOT NULL,
+  "trial_end_date" date NOT NULL,
+  "is_active" tinyint(1) DEFAULT '1',
+  "subscription_status" enum('trial','active','suspended','cancelled') DEFAULT 'trial',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  "subscription_plan" varchar(50) DEFAULT 'trial',
+  "subscription_price" decimal(10,2) DEFAULT '0.00',
+  PRIMARY KEY ("id"),
+  UNIQUE KEY "email" ("email")
 );
 
--- Users table
-CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    phone VARCHAR(20),
-    role ENUM('admin', 'landlord', 'tenant', 'maintenance') NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+
+-- rent_management.subscription_history definition
+
+CREATE TABLE "subscription_history" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "plan_id" varchar(50) NOT NULL,
+  "amount" decimal(10,2) NOT NULL,
+  "payment_method" varchar(50) DEFAULT 'credit_card',
+  "status" enum('active','cancelled','expired') DEFAULT 'active',
+  "start_date" date DEFAULT (curdate()),
+  "end_date" date DEFAULT ((curdate() + interval 30 day)),
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  CONSTRAINT "subscription_history_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
--- Properties table
-CREATE TABLE properties (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    landlord_id INT NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    type ENUM('apartment', 'house', 'shop', 'office') NOT NULL,
-    address TEXT NOT NULL,
-    city VARCHAR(100) NOT NULL,
-    subcity VARCHAR(100),
-    woreda VARCHAR(100),
-    description TEXT,
-    total_units INT DEFAULT 1,
-    images JSON,
-    amenities JSON,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    FOREIGN KEY (landlord_id) REFERENCES users(id) ON DELETE CASCADE
+
+-- rent_management.tenants definition
+
+CREATE TABLE "tenants" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "tenant_id" varchar(50) NOT NULL,
+  "full_name" varchar(255) NOT NULL,
+  "sex" enum('Male','Female') NOT NULL,
+  "phone" varchar(20) NOT NULL,
+  "city" varchar(100) NOT NULL,
+  "subcity" varchar(100) NOT NULL,
+  "woreda" varchar(100) NOT NULL,
+  "house_no" varchar(50) NOT NULL,
+  "organization" varchar(255) DEFAULT NULL,
+  "has_agent" tinyint(1) DEFAULT '0',
+  "agent_full_name" varchar(255) DEFAULT NULL,
+  "agent_sex" enum('Male','Female') DEFAULT NULL,
+  "agent_phone" varchar(20) DEFAULT NULL,
+  "agent_city" varchar(100) DEFAULT NULL,
+  "agent_subcity" varchar(100) DEFAULT NULL,
+  "agent_woreda" varchar(100) DEFAULT NULL,
+  "agent_house_no" varchar(50) DEFAULT NULL,
+  "authentication_no" varchar(100) DEFAULT NULL,
+  "authentication_date" date DEFAULT NULL,
+  "is_active" tinyint(1) DEFAULT '1',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  UNIQUE KEY "tenant_id" ("tenant_id"),
+  KEY "organization_id" ("organization_id"),
+  CONSTRAINT "tenants_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
--- Property units table
-CREATE TABLE property_units (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    property_id INT NOT NULL,
-    unit_number VARCHAR(50) NOT NULL,
-    floor_number INT,
-    room_count INT,
-    monthly_rent DECIMAL(10,2) NOT NULL,
-    deposit DECIMAL(10,2) NOT NULL,
-    is_occupied BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+
+-- rent_management.users definition
+
+CREATE TABLE "users" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int DEFAULT NULL,
+  "email" varchar(255) NOT NULL,
+  "password" varchar(255) NOT NULL,
+  "full_name" varchar(255) NOT NULL,
+  "phone" varchar(20) DEFAULT NULL,
+  "role" enum('admin','landlord','tenant','maintenance') NOT NULL,
+  "is_active" tinyint(1) DEFAULT '1',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  UNIQUE KEY "email" ("email"),
+  KEY "organization_id" ("organization_id"),
+  CONSTRAINT "users_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
--- Tenants table
-CREATE TABLE tenants (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    tenant_id VARCHAR(50) UNIQUE NOT NULL,
-    full_name VARCHAR(255) NOT NULL,
-    sex ENUM('Male', 'Female') NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    city VARCHAR(100) NOT NULL,
-    subcity VARCHAR(100) NOT NULL,
-    woreda VARCHAR(100) NOT NULL,
-    house_no VARCHAR(50) NOT NULL,
-    organization VARCHAR(255),
-    
-    -- Agent information
-    has_agent BOOLEAN DEFAULT FALSE,
-    agent_full_name VARCHAR(255),
-    agent_sex ENUM('Male', 'Female'),
-    agent_phone VARCHAR(20),
-    agent_city VARCHAR(100),
-    agent_subcity VARCHAR(100),
-    agent_woreda VARCHAR(100),
-    agent_house_no VARCHAR(50),
-    authentication_no VARCHAR(100),
-    authentication_date DATE,
-    
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+
+-- rent_management.documents definition
+
+CREATE TABLE "documents" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "entity_type" enum('property','tenant','contract','maintenance') NOT NULL,
+  "entity_id" int NOT NULL,
+  "document_name" varchar(255) NOT NULL,
+  "document_type" varchar(100) NOT NULL,
+  "file_path" varchar(500) NOT NULL,
+  "file_size" int DEFAULT NULL,
+  "uploaded_by" int NOT NULL,
+  "is_active" tinyint(1) DEFAULT '1',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "uploaded_by" ("uploaded_by"),
+  CONSTRAINT "documents_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE,
+  CONSTRAINT "documents_ibfk_2" FOREIGN KEY ("uploaded_by") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
--- Rental contracts table
-CREATE TABLE rental_contracts (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    property_id INT NOT NULL,
-    unit_id INT NOT NULL,
-    tenant_id INT NOT NULL,
-    landlord_id INT NOT NULL,
-    
-    -- Contract details
-    lease_duration INT NOT NULL, -- in months
-    contract_start_date DATE NOT NULL,
-    contract_end_date DATE NOT NULL,
-    monthly_rent DECIMAL(10,2) NOT NULL,
-    deposit DECIMAL(10,2) NOT NULL,
-    payment_term INT NOT NULL, -- payment frequency in months
-    rent_start_date DATE NOT NULL,
-    rent_end_date DATE NOT NULL,
-    total_amount DECIMAL(10,2) NOT NULL,
-    
-    -- Additional payments
-    eeu_payment DECIMAL(10,2) DEFAULT 0,
-    water_payment DECIMAL(10,2) DEFAULT 0,
-    generator_payment DECIMAL(10,2) DEFAULT 0,
-    
-    status ENUM('active', 'expired', 'terminated') DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
-    FOREIGN KEY (unit_id) REFERENCES property_units(id) ON DELETE CASCADE,
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (landlord_id) REFERENCES users(id) ON DELETE CASCADE
+
+-- rent_management.notifications definition
+
+CREATE TABLE "notifications" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "user_id" int NOT NULL,
+  "title" varchar(255) NOT NULL,
+  "message" text NOT NULL,
+  "type" enum('rent_due','lease_expiry','maintenance','payment','general') NOT NULL,
+  "is_read" tinyint(1) DEFAULT '0',
+  "scheduled_date" datetime DEFAULT NULL,
+  "sent_date" datetime DEFAULT NULL,
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "user_id" ("user_id"),
+  CONSTRAINT "notifications_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE,
+  CONSTRAINT "notifications_ibfk_2" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
--- Payments table
-CREATE TABLE payments (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    contract_id INT NOT NULL,
-    tenant_id INT NOT NULL,
-    amount DECIMAL(10,2) NOT NULL,
-    payment_date DATE NOT NULL,
-    due_date DATE NOT NULL,
-    payment_type ENUM('rent', 'deposit', 'maintenance', 'other') DEFAULT 'rent',
-    payment_method ENUM('cash', 'bank_transfer', 'check', 'online') DEFAULT 'cash',
-    status ENUM('pending', 'paid', 'overdue', 'cancelled') DEFAULT 'pending',
-    receipt_path VARCHAR(500),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    FOREIGN KEY (contract_id) REFERENCES rental_contracts(id) ON DELETE CASCADE,
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+
+-- rent_management.properties definition
+
+CREATE TABLE "properties" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "landlord_id" int NOT NULL,
+  "name" varchar(255) NOT NULL,
+  "type" enum('apartment','house','shop','office') NOT NULL,
+  "address" text NOT NULL,
+  "city" varchar(100) NOT NULL,
+  "subcity" varchar(100) DEFAULT NULL,
+  "woreda" varchar(100) DEFAULT NULL,
+  "description" text,
+  "total_units" int DEFAULT '1',
+  "images" json DEFAULT NULL,
+  "amenities" json DEFAULT NULL,
+  "is_active" tinyint(1) DEFAULT '1',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "landlord_id" ("landlord_id"),
+  CONSTRAINT "properties_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE,
+  CONSTRAINT "properties_ibfk_2" FOREIGN KEY ("landlord_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
--- Maintenance requests table
-CREATE TABLE maintenance_requests (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    property_id INT NOT NULL,
-    unit_id INT,
-    tenant_id INT,
-    assigned_to INT,
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
-    status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
-    images JSON,
-    estimated_cost DECIMAL(10,2),
-    actual_cost DECIMAL(10,2),
-    completion_notes TEXT,
-    requested_date DATE NOT NULL,
-    completed_date DATE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
-    FOREIGN KEY (unit_id) REFERENCES property_units(id) ON DELETE CASCADE,
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
+
+-- rent_management.property_units definition
+
+CREATE TABLE "property_units" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "property_id" int NOT NULL,
+  "unit_number" varchar(50) NOT NULL,
+  "floor_number" int DEFAULT NULL,
+  "room_count" int DEFAULT NULL,
+  "monthly_rent" decimal(10,2) NOT NULL,
+  "deposit" decimal(10,2) NOT NULL,
+  "is_occupied" tinyint(1) DEFAULT '0',
+  "is_active" tinyint(1) DEFAULT '1',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "property_id" ("property_id"),
+  CONSTRAINT "property_units_ibfk_1" FOREIGN KEY ("property_id") REFERENCES "properties" ("id") ON DELETE CASCADE
 );
 
--- Documents table
-CREATE TABLE documents (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    entity_type ENUM('property', 'tenant', 'contract', 'maintenance') NOT NULL,
-    entity_id INT NOT NULL,
-    document_name VARCHAR(255) NOT NULL,
-    document_type VARCHAR(100) NOT NULL,
-    file_path VARCHAR(500) NOT NULL,
-    file_size INT,
-    uploaded_by INT NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE
+
+-- rent_management.rental_contracts definition
+
+CREATE TABLE "rental_contracts" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "property_id" int NOT NULL,
+  "unit_id" int NOT NULL,
+  "tenant_id" int NOT NULL,
+  "landlord_id" int NOT NULL,
+  "lease_duration" int NOT NULL,
+  "contract_start_date" date NOT NULL,
+  "contract_end_date" date NOT NULL,
+  "monthly_rent" decimal(10,2) NOT NULL,
+  "deposit" decimal(10,2) NOT NULL,
+  "payment_term" int NOT NULL,
+  "rent_start_date" date NOT NULL,
+  "rent_end_date" date NOT NULL,
+  "total_amount" decimal(10,2) NOT NULL,
+  "eeu_payment" decimal(10,2) DEFAULT '0.00',
+  "water_payment" decimal(10,2) DEFAULT '0.00',
+  "generator_payment" decimal(10,2) DEFAULT '0.00',
+  "status" enum('active','expired','terminated') DEFAULT 'active',
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "property_id" ("property_id"),
+  KEY "unit_id" ("unit_id"),
+  KEY "tenant_id" ("tenant_id"),
+  KEY "landlord_id" ("landlord_id"),
+  CONSTRAINT "rental_contracts_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE,
+  CONSTRAINT "rental_contracts_ibfk_2" FOREIGN KEY ("property_id") REFERENCES "properties" ("id") ON DELETE CASCADE,
+  CONSTRAINT "rental_contracts_ibfk_3" FOREIGN KEY ("unit_id") REFERENCES "property_units" ("id") ON DELETE CASCADE,
+  CONSTRAINT "rental_contracts_ibfk_4" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON DELETE CASCADE,
+  CONSTRAINT "rental_contracts_ibfk_5" FOREIGN KEY ("landlord_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
--- Notifications table
-CREATE TABLE notifications (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    organization_id INT NOT NULL,
-    user_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    type ENUM('rent_due', 'lease_expiry', 'maintenance', 'payment', 'general') NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    scheduled_date DATETIME,
-    sent_date DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+
+-- rent_management.maintenance_requests definition
+
+CREATE TABLE "maintenance_requests" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "property_id" int NOT NULL,
+  "unit_id" int DEFAULT NULL,
+  "tenant_id" int DEFAULT NULL,
+  "assigned_to" int DEFAULT NULL,
+  "title" varchar(255) NOT NULL,
+  "description" text NOT NULL,
+  "priority" enum('low','medium','high','urgent') DEFAULT 'medium',
+  "status" enum('pending','in_progress','completed','cancelled') DEFAULT 'pending',
+  "images" json DEFAULT NULL,
+  "estimated_cost" decimal(10,2) DEFAULT NULL,
+  "actual_cost" decimal(10,2) DEFAULT NULL,
+  "completion_notes" text,
+  "requested_date" date NOT NULL,
+  "completed_date" date DEFAULT NULL,
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "property_id" ("property_id"),
+  KEY "unit_id" ("unit_id"),
+  KEY "tenant_id" ("tenant_id"),
+  KEY "assigned_to" ("assigned_to"),
+  CONSTRAINT "maintenance_requests_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE,
+  CONSTRAINT "maintenance_requests_ibfk_2" FOREIGN KEY ("property_id") REFERENCES "properties" ("id") ON DELETE CASCADE,
+  CONSTRAINT "maintenance_requests_ibfk_3" FOREIGN KEY ("unit_id") REFERENCES "property_units" ("id") ON DELETE CASCADE,
+  CONSTRAINT "maintenance_requests_ibfk_4" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON DELETE CASCADE,
+  CONSTRAINT "maintenance_requests_ibfk_5" FOREIGN KEY ("assigned_to") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
--- Insert default admin user
-INSERT INTO organizations (name, email, trial_start_date, trial_end_date, subscription_status) 
-VALUES ('System Admin', 'admin@rentmanagement.com', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 365 DAY), 'active');
 
-INSERT INTO users (organization_id, email, password, full_name, role) 
-VALUES (1, 'admin@rentmanagement.com', '$2b$10$rQZ8fQZ8fQZ8fQZ8fQZ8fO', 'System Administrator', 'admin');
+-- rent_management.payments definition
+
+CREATE TABLE "payments" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "organization_id" int NOT NULL,
+  "contract_id" int NOT NULL,
+  "tenant_id" int NOT NULL,
+  "amount" decimal(10,2) NOT NULL,
+  "payment_date" date NOT NULL,
+  "due_date" date NOT NULL,
+  "payment_type" enum('rent','deposit','maintenance','other') DEFAULT 'rent',
+  "payment_method" enum('cash','bank_transfer','check','online') DEFAULT 'cash',
+  "status" enum('pending','paid','overdue','cancelled') DEFAULT 'pending',
+  "receipt_path" varchar(500) DEFAULT NULL,
+  "notes" text,
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "contract_id" ("contract_id"),
+  KEY "tenant_id" ("tenant_id"),
+  CONSTRAINT "payments_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE,
+  CONSTRAINT "payments_ibfk_2" FOREIGN KEY ("contract_id") REFERENCES "rental_contracts" ("id") ON DELETE CASCADE,
+  CONSTRAINT "payments_ibfk_3" FOREIGN KEY ("tenant_id") REFERENCES "tenants" ("id") ON DELETE CASCADE
+);
