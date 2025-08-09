@@ -29,6 +29,12 @@ const createPayment = async (req, res) => {
       [req.user.organization_id, contractId, tenantId, amount, paymentDate, dueDate, paymentType, paymentMethod, notes]
     );
 
+    // Clean up any auto-generated overdue payments for the same period
+    if (paymentType === 'rent') {
+      const paymentDueDate = new Date(dueDate);
+      await cleanupOverduePayments(contractId, paymentDueDate.getMonth() + 1, paymentDueDate.getFullYear());
+    }
+
     res.status(201).json({
       message: 'Payment recorded successfully',
       paymentId: result.insertId
@@ -148,34 +154,46 @@ const generateOverduePayments = async (req, res) => {
     const today = new Date();
 
     for (const contract of contracts) {
-      // Check if there are any pending payments for this month
-      const currentMonth = today.getMonth() + 1;
-      const currentYear = today.getFullYear();
+      // Check for each month since contract start until current month
+      const startDate = new Date(contract.contract_start_date);
+      const endDate = new Date(Math.min(today.getTime(), new Date(contract.contract_end_date).getTime()));
       
-      const [existingPayments] = await db.execute(
-        `SELECT id FROM payments 
-         WHERE contract_id = ? AND MONTH(due_date) = ? AND YEAR(due_date) = ?`,
-        [contract.id, currentMonth, currentYear]
-      );
-
-      if (existingPayments.length === 0) {
-        // Create overdue payment record
-        const dueDate = new Date(currentYear, currentMonth - 1, 1); // First day of current month
+      let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      
+      while (currentDate <= endDate) {
+        const currentMonth = currentDate.getMonth() + 1;
+        const currentYear = currentDate.getFullYear();
         
-        if (dueDate < today) {
-          const [result] = await db.execute(
-            `INSERT INTO payments (organization_id, contract_id, tenant_id, amount, payment_date, due_date, payment_type, status) 
-             VALUES (?, ?, ?, ?, ?, ?, 'rent', 'overdue')`,
-            [req.user.organization_id, contract.id, contract.tenant_id, contract.monthly_rent, today, dueDate]
-          );
+        // Check if payment already exists for this month
+        const [existingPayments] = await db.execute(
+          `SELECT id, status FROM payments 
+           WHERE contract_id = ? AND MONTH(due_date) = ? AND YEAR(due_date) = ?`,
+          [contract.id, currentMonth, currentYear]
+        );
+
+        // Only create overdue record if no payment exists and due date has passed
+        if (existingPayments.length === 0) {
+          const dueDate = new Date(currentYear, currentMonth - 1, contract.payment_due_day || 1);
           
-          overduePayments.push({
-            id: result.insertId,
-            tenant_name: contract.tenant_name,
-            amount: contract.monthly_rent,
-            due_date: dueDate
-          });
+          if (dueDate < today) {
+            const [result] = await db.execute(
+              `INSERT INTO payments (organization_id, contract_id, tenant_id, amount, payment_date, due_date, payment_type, status, notes) 
+               VALUES (?, ?, ?, ?, NULL, ?, 'rent', 'overdue', 'Auto-generated overdue payment')`,
+              [req.user.organization_id, contract.id, contract.tenant_id, contract.monthly_rent, dueDate]
+            );
+            
+            overduePayments.push({
+              id: result.insertId,
+              tenant_name: contract.tenant_name,
+              amount: contract.monthly_rent,
+              due_date: dueDate,
+              month: `${currentYear}-${currentMonth.toString().padStart(2, '0')}`
+            });
+          }
         }
+        
+        // Move to next month
+        currentDate.setMonth(currentDate.getMonth() + 1);
       }
     }
 
@@ -189,10 +207,29 @@ const generateOverduePayments = async (req, res) => {
   }
 };
 
+// Function to clean up overdue payments when a payment is made
+const cleanupOverduePayments = async (contractId, paymentMonth, paymentYear) => {
+  try {
+    // Remove any auto-generated overdue payments for the same period
+    await db.execute(
+      `DELETE FROM payments 
+       WHERE contract_id = ? 
+       AND MONTH(due_date) = ? 
+       AND YEAR(due_date) = ? 
+       AND status = 'overdue' 
+       AND notes = 'Auto-generated overdue payment'`,
+      [contractId, paymentMonth, paymentYear]
+    );
+  } catch (error) {
+    console.error('Cleanup overdue payments error:', error);
+  }
+};
+
 module.exports = {
   createPayment,
   getPayments,
   updatePaymentStatus,
   deletePayment,
-  generateOverduePayments
+  generateOverduePayments,
+  cleanupOverduePayments
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
@@ -18,8 +19,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <ToastProvider>
-          <div className="min-h-screen bg-gray-50">
+        <ThemeProvider>
+          <ToastProvider>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -45,8 +47,9 @@ function App() {
             </Routes>
           </div>
         </ToastProvider>
-      </AuthProvider>
-    </Router>
+      </ThemeProvider>
+    </AuthProvider>
+  </Router>
   );
 }
 

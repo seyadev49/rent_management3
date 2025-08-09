@@ -1,6 +1,7 @@
 const db = require('../db/connection');
 
 const createContract = async (req, res) => {
+  const connection = await db.getConnection(); // Get dedicated connection for transaction
   try {
     const {
       propertyId,
@@ -28,30 +29,36 @@ const createContract = async (req, res) => {
 
     const totalAmount = (monthlyRentNum * leaseDurationNum) + eeuNum + waterNum + genNum;
 
-    // --- DEBUG: log types & values BEFORE queries ---
-    console.log('createContract payload:', {
-      propertyId, unitId, tenantId,
-      leaseDurationNum, contractStartDate, contractEndDate,
-      monthlyRentNum, deposit, paymentTerm, rentStartDate, rentEndDate,
-      eeuNum, waterNum, genNum, totalAmount,
-      organization_id: req.user && req.user.organization_id,
-      user_id: req.user && req.user.id
-    });
+    await connection.query('START TRANSACTION');
 
-    // Defensive check: ensure query is a string and params array is correct
-    const checkQuery = "SELECT id FROM rental_contracts WHERE unit_id = ? AND status = 'active'";
-    const checkParams = [unitId];
-
-    console.log('About to run checkQuery ->', { checkQuery, checkParams });
-    if (typeof checkQuery !== 'string') throw new Error('checkQuery is not a string');
-    if (!Array.isArray(checkParams)) throw new Error('checkParams is not an array');
-
-    const [existingContracts] = await db.execute(checkQuery, checkParams);
+    // 1. Check for existing active contract
+    const [existingContracts] = await connection.execute(
+      "SELECT id FROM rental_contracts WHERE unit_id = ? AND status = 'active' AND organization_id = ?",
+      [unitId, req.user.organization_id]
+    );
 
     if (existingContracts.length > 0) {
-      return res.status(400).json({ message: 'Unit is already occupied' });
+      await connection.query('ROLLBACK');
+      return res.status(400).json({ message: 'Unit is already occupied with an active contract' });
     }
 
+    // 2. Double-check unit occupancy status
+    const [unitRows] = await connection.execute(
+      'SELECT is_occupied FROM property_units WHERE id = ?',
+      [unitId]
+    );
+
+    if (unitRows.length === 0) {
+      await connection.query('ROLLBACK');
+      return res.status(404).json({ message: 'Property unit not found' });
+    }
+
+    if (unitRows[0].is_occupied) {
+      await connection.query('ROLLBACK');
+      return res.status(400).json({ message: 'Unit is marked as occupied' });
+    }
+
+    // 3. Insert new rental contract
     const insertQuery = `
       INSERT INTO rental_contracts (
         organization_id, property_id, unit_id, tenant_id, landlord_id,
@@ -62,19 +69,35 @@ const createContract = async (req, res) => {
     `;
 
     const insertParams = [
-      req.user.organization_id, propertyId, unitId, tenantId, req.user.id,
-      leaseDurationNum, contractStartDate, contractEndDate, monthlyRentNum, deposit,
-      paymentTerm, rentStartDate, rentEndDate, totalAmount,
-      eeuNum, waterNum, genNum
+      req.user.organization_id,
+      propertyId,
+      unitId,
+      tenantId,
+      req.user.id,
+      leaseDurationNum,
+      contractStartDate,
+      contractEndDate,
+      monthlyRentNum,
+      deposit,
+      paymentTerm,
+      rentStartDate,
+      rentEndDate,
+      totalAmount,
+      eeuNum,
+      waterNum,
+      genNum
     ];
 
-    console.log('About to run insertQuery ->', { insertQuery: insertQuery.trim().slice(0,200) + '...', insertParams });
-    const [result] = await db.execute(insertQuery, insertParams);
+    const [result] = await connection.execute(insertQuery, insertParams);
 
-    // Update unit as occupied
-    const updateQuery = 'UPDATE property_units SET is_occupied = TRUE WHERE id = ?';
-    console.log('About to run updateQuery ->', { updateQuery, params: [unitId] });
-    await db.execute(updateQuery, [unitId]);
+    // 4. Mark the unit as occupied
+    await connection.execute(
+      'UPDATE property_units SET is_occupied = TRUE WHERE id = ?',
+      [unitId]
+    );
+
+    // Commit all changes together
+    await connection.query('COMMIT');
 
     res.status(201).json({
       message: 'Contract created successfully',
@@ -82,15 +105,14 @@ const createContract = async (req, res) => {
     });
 
   } catch (error) {
-    // Helpful debug logging
+    await connection.query('ROLLBACK');
     console.error('Create contract error:', error);
-    if (error && error.sql) {
-      console.error('SQL that failed:', error.sql);
-      console.error('SQL message:', error.sqlMessage);
-    }
     res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release();
   }
 };
+
 const getContracts = async (req, res) => {
   try {
     const { status, propertyId, tenantId } = req.query;

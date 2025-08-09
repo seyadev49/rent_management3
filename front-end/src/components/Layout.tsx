@@ -15,7 +15,9 @@ import {
   Menu,
   X,
   Bell,
-  Search
+  Search,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -27,6 +29,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+    document.documentElement.classList.toggle('dark');
+  };
 
   const handleLogout = () => {
     logout();
@@ -44,10 +52,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
-        <div className="flex items-center justify-between h-16 px-6 bg-blue-600">
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+        <div className="flex items-center justify-between h-16 px-6 bg-blue-600 dark:bg-gray-900">
           <h1 className="text-xl font-bold text-white">RentFlow</h1>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -63,8 +71,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               key={item.name}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 ${
-                  isActive ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : ''
+                `flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors duration-200 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white ${
+                  isActive ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600 dark:bg-gray-700 dark:border-blue-500' : ''
                 }`
               }
               onClick={() => setSidebarOpen(false)}
@@ -92,7 +100,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           )}
           <button
             onClick={handleLogout}
-            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200"
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors duration-200 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             <LogOut className="h-4 w-4 mr-3" />
             Logout
@@ -111,22 +119,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between h-16 px-6">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-gray-600 hover:text-gray-900"
+                className="lg:hidden text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
               >
                 <Menu className="h-6 w-6" />
               </button>
               <div className="hidden md:flex items-center ml-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-5 w-5" />
                   <input
                     type="text"
                     placeholder="Search..."
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   />
                 </div>
               </div>
@@ -134,10 +142,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             <div className="flex items-center space-x-4">
               <NotificationDropdown />
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700 transition-colors"
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </button>
+
               <div className="flex items-center space-x-3">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
-                  <p className="text-xs text-gray-600">{user?.organizationName}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.fullName}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{user?.organizationName}</p>
                 </div>
                 <div className="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center">
                   <span className="text-white text-sm font-medium">
@@ -154,7 +175,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
-      
+
       <UpgradeModal 
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)} 

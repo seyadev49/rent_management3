@@ -8,6 +8,7 @@ const {
   deleteTenant
 } = require('../controllers/tenantController');
 const { authenticateToken, authorize } = require('../middleware/auth');
+const { terminateTenant } = require('../controllers/tenantController');
 
 const router = express.Router();
 
@@ -27,5 +28,6 @@ router.get('/', authenticateToken, getTenants);
 router.get('/:id', authenticateToken, getTenantById);
 router.put('/:id', authenticateToken, authorize('landlord', 'admin'), tenantValidation, updateTenant);
 router.delete('/:id', authenticateToken, authorize('landlord', 'admin'), deleteTenant);
+router.post('/:id/terminate', authenticateToken, authorize('landlord', 'admin'), terminateTenant);
 
 module.exports = router;

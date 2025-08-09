@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const cron = require('node-cron');
+const { generateSystemNotifications } = require('./controllers/notificationController');
 
 // Load environment variables
 dotenv.config();
@@ -26,7 +28,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const documentRoutes = require('./routes/document');
 const notificationRoutes = require('./routes/notification');
 const subscriptionRoutes = require('./routes/subscription');
-const { generateSystemNotifications } = require('./controllers/notificationController');
+
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -41,8 +43,16 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 
-// Generate system notifications every hour
-setInterval(generateSystemNotifications, 60 * 60 * 1000);
+// Schedule notification generation to run daily at 9 AM
+cron.schedule('0 9 * * *', () => {
+  console.log('Running scheduled notification generation...');
+  generateSystemNotifications();
+});
+
+// Also run on startup
+setTimeout(() => {
+  generateSystemNotifications();
+}, 5000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

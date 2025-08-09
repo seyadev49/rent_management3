@@ -81,26 +81,26 @@ const getUnreadCount = async (req, res) => {
   }
 };
 
-// Auto-generate notifications for system events
+// Enhanced auto-generate notifications for system events
 const generateSystemNotifications = async () => {
   try {
-    // Check for expiring contracts (within 30 days)
-    const [expiringContracts] = await db.execute(`
-      SELECT rc.*, u.id as landlord_id, t.full_name as tenant_name, p.name as property_name
+    // 1. Check for lease renewals (60 and 30 days before expiry)
+    const [contractsExpiring60] = await db.execute(`
+      SELECT rc.*, u.id as landlord_id, t.full_name as tenant_name, p.name as property_name,
+             DATEDIFF(rc.contract_end_date, CURDATE()) as days_left
       FROM rental_contracts rc
       JOIN users u ON rc.landlord_id = u.id
       JOIN tenants t ON rc.tenant_id = t.id
       JOIN properties p ON rc.property_id = p.id
       WHERE rc.status = 'active' 
-      AND DATEDIFF(rc.contract_end_date, CURDATE()) <= 30 
-      AND DATEDIFF(rc.contract_end_date, CURDATE()) >= 0
+      AND DATEDIFF(rc.contract_end_date, CURDATE()) IN (60, 30)
     `);
 
-    for (const contract of expiringContracts) {
-      // Check if notification already exists
+    for (const contract of contractsExpiring60) {
+      const notificationType = contract.days_left === 60 ? 'lease_renewal_60' : 'lease_renewal_30';
       const [existing] = await db.execute(
-        'SELECT id FROM notifications WHERE type = ? AND message LIKE ? AND user_id = ?',
-        ['lease_expiry', `%${contract.tenant_name}%`, contract.landlord_id]
+        'SELECT id FROM notifications WHERE type = ? AND message LIKE ? AND user_id = ? AND DATE(created_at) = CURDATE()',
+        [notificationType, `%${contract.tenant_name}%`, contract.landlord_id]
       );
 
       if (existing.length === 0) {
@@ -110,28 +110,30 @@ const generateSystemNotifications = async () => {
           [
             contract.organization_id,
             contract.landlord_id,
-            'Contract Expiring Soon',
-            `Contract for ${contract.tenant_name} at ${contract.property_name} expires on ${new Date(contract.contract_end_date).toLocaleDateString()}`,
-            'lease_expiry'
+            contract.days_left === 60 ? 'Lease Renewal Due Soon' : 'Lease Expires in 30 Days',
+            `Contract for ${contract.tenant_name} at ${contract.property_name} expires in ${contract.days_left} days. Consider initiating renewal process.`,
+            notificationType
           ]
         );
       }
     }
 
-    // Check for overdue payments
-    const [overduePayments] = await db.execute(`
-      SELECT p.*, rc.landlord_id, t.full_name as tenant_name, prop.name as property_name
+    // 2. Check for payments due in 3 days
+    const [paymentsDueSoon] = await db.execute(`
+      SELECT p.*, rc.landlord_id, t.full_name as tenant_name, prop.name as property_name,
+             DATEDIFF(p.due_date, CURDATE()) as days_left
       FROM payments p
       JOIN rental_contracts rc ON p.contract_id = rc.id
       JOIN tenants t ON p.tenant_id = t.id
       JOIN properties prop ON rc.property_id = prop.id
-      WHERE p.status = 'overdue' AND p.due_date < CURDATE()
+      WHERE p.status = 'pending' 
+      AND DATEDIFF(p.due_date, CURDATE()) = 3
     `);
 
-    for (const payment of overduePayments) {
+    for (const payment of paymentsDueSoon) {
       const [existing] = await db.execute(
-        'SELECT id FROM notifications WHERE type = ? AND message LIKE ? AND user_id = ?',
-        ['rent_due', `%${payment.tenant_name}%`, payment.landlord_id]
+        'SELECT id FROM notifications WHERE type = ? AND message LIKE ? AND user_id = ? AND DATE(created_at) = CURDATE()',
+        ['payment_reminder', `%${payment.tenant_name}%`, payment.landlord_id]
       );
 
       if (existing.length === 0) {
@@ -141,15 +143,81 @@ const generateSystemNotifications = async () => {
           [
             payment.organization_id,
             payment.landlord_id,
-            'Overdue Payment',
-            `Payment of $${payment.amount} from ${payment.tenant_name} at ${payment.property_name} is overdue`,
-            'rent_due'
+            'Payment Due Soon',
+            `Payment of $${payment.amount} from ${payment.tenant_name} at ${payment.property_name} is due in 3 days (${new Date(payment.due_date).toLocaleDateString()})`,
+            'payment_reminder'
           ]
         );
       }
     }
 
-    console.log('System notifications generated successfully');
+    // 3. Check for payments due today
+    const [paymentsDueToday] = await db.execute(`
+      SELECT p.*, rc.landlord_id, t.full_name as tenant_name, prop.name as property_name
+      FROM payments p
+      JOIN rental_contracts rc ON p.contract_id = rc.id
+      JOIN tenants t ON p.tenant_id = t.id
+      JOIN properties prop ON rc.property_id = prop.id
+      WHERE p.status = 'pending' 
+      AND DATE(p.due_date) = CURDATE()
+    `);
+
+    for (const payment of paymentsDueToday) {
+      const [existing] = await db.execute(
+        'SELECT id FROM notifications WHERE type = ? AND message LIKE ? AND user_id = ? AND DATE(created_at) = CURDATE()',
+        ['payment_due_today', `%${payment.tenant_name}%`, payment.landlord_id]
+      );
+
+      if (existing.length === 0) {
+        await db.execute(
+          `INSERT INTO notifications (organization_id, user_id, title, message, type) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            payment.organization_id,
+            payment.landlord_id,
+            'Payment Due Today',
+            `Payment of $${payment.amount} from ${payment.tenant_name} at ${payment.property_name} is due today`,
+            'payment_due_today'
+          ]
+        );
+      }
+    }
+
+    // 4. Check for overdue payments
+    const [overduePayments] = await db.execute(`
+      SELECT p.*, rc.landlord_id, t.full_name as tenant_name, prop.name as property_name,
+             DATEDIFF(CURDATE(), p.due_date) as days_overdue
+      FROM payments p
+      JOIN rental_contracts rc ON p.contract_id = rc.id
+      JOIN tenants t ON p.tenant_id = t.id
+      JOIN properties prop ON rc.property_id = prop.id
+      WHERE p.status = 'overdue' 
+      AND p.due_date < CURDATE()
+    `);
+
+    for (const payment of overduePayments) {
+      // Only send overdue notification once per day
+      const [existing] = await db.execute(
+        'SELECT id FROM notifications WHERE type = ? AND message LIKE ? AND user_id = ? AND DATE(created_at) = CURDATE()',
+        ['rent_overdue', `%${payment.tenant_name}%`, payment.landlord_id]
+      );
+
+      if (existing.length === 0) {
+        await db.execute(
+          `INSERT INTO notifications (organization_id, user_id, title, message, type) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            payment.organization_id,
+            payment.landlord_id,
+            'Payment Overdue',
+            `Payment of $${payment.amount} from ${payment.tenant_name} at ${payment.property_name} is ${payment.days_overdue} day(s) overdue`,
+            'rent_overdue'
+          ]
+        );
+      }
+    }
+
+    console.log('Enhanced system notifications generated successfully');
   } catch (error) {
     console.error('Generate system notifications error:', error);
   }

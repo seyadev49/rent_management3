@@ -74,7 +74,12 @@ const getTenants = async (req, res) => {
               rc.monthly_rent,
               rc.contract_start_date,
               rc.contract_end_date,
-              rc.status as contract_status
+              rc.status as contract_status,
+              DATEDIFF(rc.contract_end_date, CURDATE()) as days_until_expiry,
+              (SELECT MIN(DATEDIFF(pay.due_date, CURDATE())) 
+               FROM payments pay 
+               WHERE pay.contract_id = rc.id AND pay.status IN ('pending', 'overdue') 
+               AND pay.due_date >= CURDATE()) as days_until_next_payment
        FROM tenants t
        LEFT JOIN rental_contracts rc ON t.id = rc.tenant_id AND rc.status = 'active'
        LEFT JOIN properties p ON rc.property_id = p.id
@@ -171,11 +176,170 @@ const deleteTenant = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+const terminateTenant = async (req, res) => {
+  const connection = await db.getConnection(); // Get dedicated connection for transaction
+  try {
+    const { id } = req.params;
+    const {
+      terminationDate,
+      terminationReason,
+      securityDepositAction, // 'return_full', 'return_partial', 'keep_full'
+      partialReturnAmount,
+      deductions,
+      notes
+    } = req.body;
+
+    // Start transaction using query()
+    await connection.query('START TRANSACTION');
+
+    // Verify tenant belongs to organization
+    const [tenants] = await connection.execute(
+      'SELECT * FROM tenants WHERE id = ? AND organization_id = ?',
+      [id, req.user.organization_id]
+    );
+
+    if (tenants.length === 0) {
+      await connection.query('ROLLBACK');
+      return res.status(404).json({ message: 'Tenant not found' });
+    }
+
+    const tenant = tenants[0];
+
+    // Get active contract
+    const [contracts] = await connection.execute(
+      `SELECT rc.*, p.name as property_name, pu.unit_number 
+       FROM rental_contracts rc
+       JOIN properties p ON rc.property_id = p.id
+       JOIN property_units pu ON rc.unit_id = pu.id
+       WHERE rc.tenant_id = ? AND rc.status = 'active' AND rc.organization_id = ?`,
+      [id, req.user.organization_id]
+    );
+
+    if (contracts.length === 0) {
+      await connection.query('ROLLBACK');
+      return res.status(404).json({ message: 'No active contract found for this tenant' });
+    }
+
+    const contract = contracts[0];
+
+    // 1. Terminate the contract
+    await connection.execute(
+      `UPDATE rental_contracts 
+       SET status = 'terminated', 
+           actual_end_date = ?,
+           termination_reason = ?,
+           termination_date = ?
+       WHERE id = ? AND organization_id = ?`,
+      [terminationDate, terminationReason, terminationDate, contract.id, req.user.organization_id]
+    );
+
+    // 2. Handle security deposit
+    let depositReturnAmount = 0;
+    if (securityDepositAction === 'return_full') {
+      depositReturnAmount = contract.security_deposit;
+    } else if (securityDepositAction === 'return_partial') {
+      depositReturnAmount = partialReturnAmount || 0;
+    }
+
+    // Record security deposit transaction if returning any amount
+    if (depositReturnAmount > 0) {
+      await connection.execute(
+        `INSERT INTO payments (organization_id, contract_id, tenant_id, amount, payment_date, due_date, payment_type, payment_method, status, notes) 
+         VALUES (?, ?, ?, ?, ?, ?, 'deposit_return', 'cash', 'paid', ?)`,
+        [
+          req.user.organization_id,
+          contract.id,
+          id,
+          -depositReturnAmount, // Negative amount for refund
+          terminationDate,
+          terminationDate,
+          `Security deposit return: ${securityDepositAction}`
+        ]
+      );
+    }
+
+    // 3. Record deductions if any
+    if (deductions && deductions.length > 0) {
+      for (const deduction of deductions) {
+        await connection.execute(
+          `INSERT INTO payments (organization_id, contract_id, tenant_id, amount, payment_date, due_date, payment_type, payment_method, status, notes) 
+           VALUES (?, ?, ?, ?, ?, ?, 'deduction', 'deduction', 'paid', ?)`,
+          [
+            req.user.organization_id,
+            contract.id,
+            id,
+            deduction.amount,
+            terminationDate,
+            terminationDate,
+            `Deduction: ${deduction.description}`
+          ]
+        );
+      }
+    }
+
+    // 4. Cancel any future pending payments
+    await connection.execute(
+      `UPDATE payments 
+       SET status = 'cancelled', notes = CONCAT(IFNULL(notes, ''), ' - Cancelled due to tenant termination')
+       WHERE contract_id = ? AND status = 'pending' AND due_date > ?`,
+      [contract.id, terminationDate]
+    );
+
+    // 5. Update tenant status
+    await connection.execute(
+  `UPDATE tenants 
+   SET termination_date = ?,
+       termination_reason = ?,
+       termination_notes = ?
+   WHERE id = ? AND organization_id = ?`,
+  [terminationDate, terminationReason, notes, id, req.user.organization_id]
+);
+    // 6. Create notification for landlord
+    await connection.execute(
+      `INSERT INTO notifications (organization_id, user_id, title, message, type) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        req.user.organization_id,
+        contract.landlord_id,
+        'Tenant Terminated',
+        `Tenant ${tenant.full_name} at ${contract.property_name} Unit ${contract.unit_number} has been terminated. Reason: ${terminationReason}`,
+        'general'
+      ]
+    );
+
+    await connection.execute(
+  `UPDATE property_units 
+   SET is_occupied = 0
+   WHERE id = ?`,
+  [contract.unit_id]
+);
+    await connection.query('COMMIT');
+
+    res.json({
+      message: 'Tenant terminated successfully',
+      terminationDetails: {
+        tenant_name: tenant.full_name,
+        property: `${contract.property_name} Unit ${contract.unit_number}`,
+        termination_date: terminationDate,
+        deposit_returned: depositReturnAmount,
+        reason: terminationReason
+      }
+    });
+
+  } catch (error) {
+    await connection.query('ROLLBACK');
+    console.error('Terminate tenant error:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release(); // Always release the connection back to the pool
+  }
+};
 
 module.exports = {
   createTenant,
   getTenants,
   getTenantById,
   updateTenant,
-  deleteTenant
+  deleteTenant,
+  terminateTenant
 };
