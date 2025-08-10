@@ -51,7 +51,12 @@ const getPayments = async (req, res) => {
     
     let query = `
       SELECT p.*, t.full_name as tenant_name, prop.name as property_name, pu.unit_number,
-             rc.monthly_rent as contract_rent
+             rc.monthly_rent as contract_rent,
+             CASE 
+               WHEN p.status = 'pending' AND p.due_date >= CURDATE() THEN DATEDIFF(p.due_date, CURDATE())
+               WHEN p.status = 'overdue' THEN DATEDIFF(CURDATE(), p.due_date) * -1
+               ELSE NULL
+             END as days_until_due
       FROM payments p
       JOIN tenants t ON p.tenant_id = t.id
       JOIN rental_contracts rc ON p.contract_id = rc.id
@@ -87,7 +92,7 @@ const getPayments = async (req, res) => {
       params.push(endDate);
     }
     
-    query += ' ORDER BY p.payment_date DESC';
+    query += ' ORDER BY p.due_date DESC, p.created_at DESC';
     
     const [payments] = await db.execute(query, params);
     
@@ -97,20 +102,25 @@ const getPayments = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const { status, notes, paymentDate } = req.body;
 
     if (!id || !status) {
       return res.status(400).json({ message: 'Payment ID and status are required' });
     }
 
+    // If marking as paid, set payment_date to today if not provided
+    const actualPaymentDate = status === 'paid' && !paymentDate ? new Date().toISOString().split('T')[0] : paymentDate;
+
     await db.execute(
-      'UPDATE payments SET status = ?, notes = ? WHERE id = ? AND organization_id = ?',
+      'UPDATE payments SET status = ?, notes = ?, payment_date = ? WHERE id = ? AND organization_id = ?',
       [
         status,
         notes !== undefined ? notes : null,
+        actualPaymentDate || null,
         id,
         req.user?.organization_id ?? null
       ]
@@ -225,11 +235,35 @@ const cleanupOverduePayments = async (contractId, paymentMonth, paymentYear) => 
   }
 };
 
+// Get payment summary with days until due
+const getPaymentSummary = async (req, res) => {
+  try {
+    const [summary] = await db.execute(
+      `SELECT 
+        COUNT(CASE WHEN status = 'pending' AND due_date >= CURDATE() THEN 1 END) as upcoming_payments,
+        COUNT(CASE WHEN status = 'pending' AND due_date < CURDATE() THEN 1 END) as overdue_payments,
+        COUNT(CASE WHEN status = 'paid' AND MONTH(payment_date) = MONTH(CURDATE()) THEN 1 END) as paid_this_month,
+        SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) as pending_amount,
+        SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as overdue_amount,
+        SUM(CASE WHEN status = 'paid' AND MONTH(payment_date) = MONTH(CURDATE()) THEN amount ELSE 0 END) as collected_this_month
+       FROM payments 
+       WHERE organization_id = ?`,
+      [req.user.organization_id]
+    );
+
+    res.json({ summary: summary[0] });
+  } catch (error) {
+    console.error('Get payment summary error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   createPayment,
   getPayments,
   updatePaymentStatus,
   deletePayment,
   generateOverduePayments,
-  cleanupOverduePayments
+  cleanupOverduePayments,
+  getPaymentSummary
 };

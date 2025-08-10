@@ -48,10 +48,17 @@ app.use('/api/subscription', subscriptionRoutes);
 //   console.log('Running scheduled notification generation...');
 //   generateSystemNotifications();
 // });
-// Schedule notification generation to run every 3 seconds for testing
-cron.schedule('*/8 * * * * *', () => {
+// Schedule notification generation to run every hour for comprehensive coverage
+cron.schedule('0 * * * *', () => {
   console.log('Running scheduled notification generation...');
   generateSystemNotifications();
+});
+
+// Schedule monthly payment generation to run daily at 6 AM
+cron.schedule('0 6 * * *', () => {
+  console.log('Running monthly payment generation...');
+  const { generateMonthlyRentPayments } = require('./controllers/notificationController');
+  generateMonthlyRentPayments();
 });
 
 // Also run on startup

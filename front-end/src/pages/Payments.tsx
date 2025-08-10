@@ -25,6 +25,7 @@ interface Payment {
   property_name: string;
   unit_number: string;
   notes?: string;
+  days_until_due?: number;
 }
 
 interface Contract {
@@ -216,6 +217,33 @@ const Payments: React.FC = () => {
     }
   };
 
+  const getDaysUntilDueDisplay = (payment: Payment) => {
+    if (payment.status === 'paid') return null;
+    
+    if (payment.days_until_due !== undefined && payment.days_until_due !== null) {
+      if (payment.days_until_due > 0) {
+        return (
+          <div className="text-xs text-blue-600">
+            Due in {payment.days_until_due} day{payment.days_until_due !== 1 ? 's' : ''}
+          </div>
+        );
+      } else if (payment.days_until_due < 0) {
+        return (
+          <div className="text-xs text-red-600">
+            {Math.abs(payment.days_until_due)} day{Math.abs(payment.days_until_due) !== 1 ? 's' : ''} overdue
+          </div>
+        );
+      } else {
+        return (
+          <div className="text-xs text-orange-600">
+            Due today
+          </div>
+        );
+      }
+    }
+    
+    return null;
+  };
   const filteredPayments = payments.filter(payment =>
     payment.tenant_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     payment.property_name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -330,11 +358,12 @@ const Payments: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      Paid: {new Date(payment.payment_date).toLocaleDateString()}
+                      {payment.payment_date ? `Paid: ${new Date(payment.payment_date).toLocaleDateString()}` : 'Not paid yet'}
                     </div>
                     <div className="text-sm text-gray-500">
                       Due: {new Date(payment.due_date).toLocaleDateString()}
                     </div>
+                    {getDaysUntilDueDisplay(payment)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm text-gray-900 capitalize">

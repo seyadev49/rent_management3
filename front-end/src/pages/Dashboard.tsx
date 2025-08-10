@@ -44,6 +44,7 @@ interface RecentPayment {
   tenant_name: string;
   property_name: string;
   unit_number: string;
+  days_until_due?: number;
 }
 
 interface ExpiringContract {
@@ -89,6 +90,64 @@ const Dashboard: React.FC = () => {
     }
   }, [token]);
 
+  const getPaymentStatusDisplay = (payment: RecentPayment) => {
+    if (payment.status === 'paid') {
+      return (
+        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+          paid
+        </span>
+      );
+    }
+    
+    if (payment.days_until_due !== undefined && payment.days_until_due !== null) {
+      if (payment.days_until_due > 0) {
+        return (
+          <div>
+            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+              {payment.status}
+            </span>
+            <div className="text-xs text-blue-600 mt-1">
+              Due in {payment.days_until_due} day{payment.days_until_due !== 1 ? 's' : ''}
+            </div>
+          </div>
+        );
+      } else if (payment.days_until_due < 0) {
+        return (
+          <div>
+            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+              overdue
+            </span>
+            <div className="text-xs text-red-600 mt-1">
+              {Math.abs(payment.days_until_due)} day{Math.abs(payment.days_until_due) !== 1 ? 's' : ''} overdue
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div>
+            <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+              {payment.status}
+            </span>
+            <div className="text-xs text-orange-600 mt-1">
+              Due today
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+        payment.status === 'pending'
+          ? 'bg-yellow-100 text-yellow-800'
+          : payment.status === 'overdue'
+          ? 'bg-red-100 text-red-800'
+          : 'bg-gray-100 text-gray-800'
+      }`}>
+        {payment.status}
+      </span>
+    );
+  };
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -170,20 +229,12 @@ const Dashboard: React.FC = () => {
                         {payment.property_name} - Unit {payment.unit_number}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(payment.payment_date).toLocaleDateString()}
+                        {payment.payment_date ? new Date(payment.payment_date).toLocaleDateString() : 'Not paid yet'}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">${payment.amount}</p>
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        payment.status === 'paid' 
-                          ? 'bg-green-100 text-green-800'
-                          : payment.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {payment.status}
-                      </span>
+                      {getPaymentStatusDisplay(payment)}
                     </div>
                   </div>
                 ))}

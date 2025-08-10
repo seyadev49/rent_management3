@@ -5,7 +5,8 @@ const {
   getPayments,
   updatePaymentStatus,
   deletePayment,
-  generateOverduePayments
+  generateOverduePayments,
+  getPaymentSummary
 } = require('../controllers/paymentController');
 const { authenticateToken } = require('../middleware/auth');
 
@@ -21,6 +22,7 @@ const paymentValidation = [
 
 router.post('/', authenticateToken, paymentValidation, createPayment);
 router.get('/', authenticateToken, getPayments);
+router.get('/summary', authenticateToken, getPaymentSummary);
 router.put('/:id/status', authenticateToken, updatePaymentStatus);
 router.delete('/:id', authenticateToken, deletePayment);
 router.post('/generate-overdue', authenticateToken, generateOverduePayments);
