@@ -1,25 +1,23 @@
--- rent_management.organizations definition
 
-CREATE TABLE "organizations" (
-  "id" int NOT NULL AUTO_INCREMENT,
-  "name" varchar(255) NOT NULL,
-  "email" varchar(255) NOT NULL,
-  "phone" varchar(20) DEFAULT NULL,
-  "address" text,
-  "trial_start_date" date NOT NULL,
-  "trial_end_date" date NOT NULL,
-  "is_active" tinyint(1) DEFAULT '1',
-  "subscription_status" enum('trial','active','suspended','cancelled') DEFAULT 'trial',
-  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  "subscription_plan" varchar(50) DEFAULT 'trial',
-  "subscription_price" decimal(10,2) DEFAULT '0.00',
-  PRIMARY KEY ("id"),
-  UNIQUE KEY "email" ("email")
+
+CREATE TABLE `organizations` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(250) NOT NULL,
+  `email` VARCHAR(255) NOT NULL,
+  `phone` VARCHAR(20) DEFAULT NULL,
+  `address` TEXT,
+  `trial_start_date` DATE NOT NULL,
+  `trial_end_date` DATE NOT NULL,
+  `is_active` TINYINT(1) DEFAULT '1',
+  `subscription_status` ENUM('trial','active','suspended','cancelled') DEFAULT 'trial',
+  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `subscription_plan` VARCHAR(50) DEFAULT 'trial',
+  `subscription_price` DECIMAL(10,2) DEFAULT '0.00',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`)
 );
 
-
--- rent_management.subscription_history definition
 
 CREATE TABLE "subscription_history" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -36,8 +34,6 @@ CREATE TABLE "subscription_history" (
   CONSTRAINT "subscription_history_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
-
--- rent_management.tenants definition
 
 CREATE TABLE "tenants" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -64,14 +60,15 @@ CREATE TABLE "tenants" (
   "is_active" tinyint(1) DEFAULT '1',
   "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  "termination_notes" text,
+  "termination_date" date DEFAULT NULL,
+  "termination_reason" varchar(255) DEFAULT NULL,
   PRIMARY KEY ("id"),
   UNIQUE KEY "tenant_id" ("tenant_id"),
   KEY "organization_id" ("organization_id"),
   CONSTRAINT "tenants_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
-
--- rent_management.users definition
 
 CREATE TABLE "users" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -90,8 +87,6 @@ CREATE TABLE "users" (
   CONSTRAINT "users_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
-
--- rent_management.documents definition
 
 CREATE TABLE "documents" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -113,15 +108,13 @@ CREATE TABLE "documents" (
 );
 
 
--- rent_management.notifications definition
-
 CREATE TABLE "notifications" (
   "id" int NOT NULL AUTO_INCREMENT,
   "organization_id" int NOT NULL,
   "user_id" int NOT NULL,
   "title" varchar(255) NOT NULL,
   "message" text NOT NULL,
-  "type" enum('rent_due','lease_expiry','maintenance','payment','general') NOT NULL,
+  "type" enum('rent_due','lease_expiry','maintenance','payment','general','payment_reminder','payment_due_today','rent_overdue','lease_renewal_60','lease_renewal_30') NOT NULL,
   "is_read" tinyint(1) DEFAULT '0',
   "scheduled_date" datetime DEFAULT NULL,
   "sent_date" datetime DEFAULT NULL,
@@ -133,8 +126,6 @@ CREATE TABLE "notifications" (
   CONSTRAINT "notifications_ibfk_2" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-
--- rent_management.properties definition
 
 CREATE TABLE "properties" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -161,8 +152,6 @@ CREATE TABLE "properties" (
 );
 
 
--- rent_management.property_units definition
-
 CREATE TABLE "property_units" (
   "id" int NOT NULL AUTO_INCREMENT,
   "property_id" int NOT NULL,
@@ -179,8 +168,6 @@ CREATE TABLE "property_units" (
   CONSTRAINT "property_units_ibfk_1" FOREIGN KEY ("property_id") REFERENCES "properties" ("id") ON DELETE CASCADE
 );
 
-
--- rent_management.rental_contracts definition
 
 CREATE TABLE "rental_contracts" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -204,6 +191,10 @@ CREATE TABLE "rental_contracts" (
   "status" enum('active','expired','terminated') DEFAULT 'active',
   "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  "actual_end_date" date DEFAULT NULL,
+  "termination_reason" varchar(255) DEFAULT NULL,
+  "termination_date" date DEFAULT NULL,
+  "payment_due_day" int DEFAULT '1',
   PRIMARY KEY ("id"),
   KEY "organization_id" ("organization_id"),
   KEY "property_id" ("property_id"),
@@ -217,8 +208,6 @@ CREATE TABLE "rental_contracts" (
   CONSTRAINT "rental_contracts_ibfk_5" FOREIGN KEY ("landlord_id") REFERENCES "users" ("id") ON DELETE CASCADE
 );
 
-
--- rent_management.maintenance_requests definition
 
 CREATE TABLE "maintenance_requests" (
   "id" int NOT NULL AUTO_INCREMENT,
@@ -252,8 +241,6 @@ CREATE TABLE "maintenance_requests" (
   CONSTRAINT "maintenance_requests_ibfk_5" FOREIGN KEY ("assigned_to") REFERENCES "users" ("id") ON DELETE SET NULL
 );
 
-
--- rent_management.payments definition
 
 CREATE TABLE "payments" (
   "id" int NOT NULL AUTO_INCREMENT,

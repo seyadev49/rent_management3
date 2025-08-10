@@ -43,8 +43,13 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 
-// Schedule notification generation to run daily at 9 AM
-cron.schedule('0 9 * * *', () => {
+// // Schedule notification generation to run daily at 9 AM
+// cron.schedule('0 9 * * *', () => {
+//   console.log('Running scheduled notification generation...');
+//   generateSystemNotifications();
+// });
+// Schedule notification generation to run every 3 seconds for testing
+cron.schedule('*/8 * * * * *', () => {
   console.log('Running scheduled notification generation...');
   generateSystemNotifications();
 });
