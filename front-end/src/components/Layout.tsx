@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
 import UpgradeModal from './UpgradeModal';
+import PlanLimitModal from './PlanLimitModal';
 import {
   Home,
   Building2,
@@ -25,10 +26,12 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isSubscriptionOverdue } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showPlanLimitModal, setShowPlanLimitModal] = useState(false);
+  const [planLimitData, setPlanLimitData] = useState<any>(null);
   const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode
 
   const toggleDarkMode = () => {
@@ -40,6 +43,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     logout();
     navigate('/login');
   };
+
+  const handlePlanLimitReached = (limitData: any) => {
+    setPlanLimitData(limitData);
+    setShowPlanLimitModal(true);
+  };
+
+  // Don't render layout if subscription is overdue
+  if (isSubscriptionOverdue) {
+    return null;
+  }
 
   const navigation = [
     { name: 'Dashboard', to: '/dashboard', icon: Home },
@@ -172,7 +185,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">
-          {children}
+          {React.cloneElement(children as React.ReactElement, { onPlanLimitReached: handlePlanLimitReached })}
         </main>
       </div>
 
@@ -180,6 +193,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)} 
       />
+      
+      {planLimitData && (
+        <PlanLimitModal
+          isOpen={showPlanLimitModal}
+          onClose={() => setShowPlanLimitModal(false)}
+          onUpgrade={() => {
+            setShowPlanLimitModal(false);
+            setShowUpgradeModal(true);
+          }}
+          feature={planLimitData.feature}
+          currentPlan={planLimitData.plan}
+          currentUsage={planLimitData.currentUsage}
+          limit={planLimitData.limit}
+        />
+      )}
     </div>
   );
 };

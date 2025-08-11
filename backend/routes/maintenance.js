@@ -1,5 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
+const { checkPlanLimit } = require('../middleware/planLimits');
 const {
   createMaintenanceRequest,
   getMaintenanceRequests,
@@ -17,7 +18,7 @@ const maintenanceValidation = [
   body('priority').isIn(['low', 'medium', 'high', 'urgent']).withMessage('Valid priority is required'),
 ];
 
-router.post('/', authenticateToken, maintenanceValidation, createMaintenanceRequest);
+router.post('/', authenticateToken, checkPlanLimit('maintenance_requests'), maintenanceValidation, createMaintenanceRequest);
 router.get('/', authenticateToken, getMaintenanceRequests);
 router.put('/:id', authenticateToken, updateMaintenanceRequest);
 router.delete('/:id', authenticateToken, deleteMaintenanceRequest);

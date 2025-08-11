@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import SubscriptionOverdueModal from '../components/SubscriptionOverdueModal';
 
 interface User {
   id: number;
@@ -9,6 +10,10 @@ interface User {
   organizationName: string;
   subscriptionStatus: string;
   trialEndDate: string;
+  subscriptionPlan?: string;
+  subscriptionPrice?: number;
+  nextRenewalDate?: string;
+  daysUntilRenewal?: number;
 }
 
 interface AuthContextType {
@@ -18,6 +23,7 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  isSubscriptionOverdue: boolean;
 }
 
 interface RegisterData {
@@ -47,6 +53,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [isSubscriptionOverdue, setIsSubscriptionOverdue] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -63,9 +71,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const data = await response.json();
             setUser(data.user);
             setToken(savedToken);
+            
+            // Check subscription status
+            await checkSubscriptionStatus(savedToken);
           } else {
-            localStorage.removeItem('token');
-            setToken(null);
+            const errorData = await response.json();
+            if (errorData.code === 'SUBSCRIPTION_OVERDUE') {
+              setIsSubscriptionOverdue(true);
+              // Get subscription details for the modal
+              await getSubscriptionDetails(savedToken);
+            } else {
+              localStorage.removeItem('token');
+              setToken(null);
+            }
           }
         } catch (error) {
           console.error('Auth initialization error:', error);
@@ -79,6 +97,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
+  const checkSubscriptionStatus = async (authToken: string) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/subscription/status', {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const subscription = data.subscription;
+        
+        // Check if subscription is overdue
+        if (subscription.subscription_status === 'overdue' || 
+            (subscription.next_renewal_date && subscription.daysUntilRenewal < 0)) {
+          setIsSubscriptionOverdue(true);
+          setSubscriptionData({
+            plan: subscription.subscription_plan,
+            amount: subscription.subscription_price,
+            daysOverdue: Math.abs(subscription.daysUntilRenewal || 0),
+            nextRenewalDate: subscription.next_renewal_date
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check subscription status:', error);
+    }
+  };
+
+  const getSubscriptionDetails = async (authToken: string) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/subscription/status', {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const subscription = data.subscription;
+        setSubscriptionData({
+          plan: subscription.subscription_plan,
+          amount: subscription.subscription_price,
+          daysOverdue: Math.abs(subscription.daysUntilRenewal || 0),
+          nextRenewalDate: subscription.next_renewal_date
+        });
+      }
+    } catch (error) {
+      console.error('Failed to get subscription details:', error);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const response = await fetch('http://localhost:5000/api/auth/login', {
       method: 'POST',
@@ -91,6 +161,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const data = await response.json();
 
     if (!response.ok) {
+      if (data.code === 'SUBSCRIPTION_OVERDUE') {
+        setIsSubscriptionOverdue(true);
+        // You might want to get subscription details here too
+        throw new Error('Your subscription is overdue. Please renew to continue.');
+      }
       throw new Error(data.message || 'Login failed');
     }
 
@@ -122,6 +197,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
+    setIsSubscriptionOverdue(false);
+    setSubscriptionData(null);
     localStorage.removeItem('token');
   };
 
@@ -132,7 +209,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     loading,
+    isSubscriptionOverdue,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {isSubscriptionOverdue && subscriptionData && (
+        <SubscriptionOverdueModal
+          isOpen={isSubscriptionOverdue}
+          subscriptionData={subscriptionData}
+        />
+      )}
+    </AuthContext.Provider>
+  );
 };

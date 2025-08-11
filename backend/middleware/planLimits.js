@@ -1,0 +1,82 @@
+const db = require('../db/connection');
+
+const checkPlanLimit = (feature) => {
+  return async (req, res, next) => {
+    try {
+      // Get current subscription
+      const [organizations] = await db.execute(
+        `SELECT subscription_plan, subscription_status FROM organizations WHERE id = ?`,
+        [req.user.organization_id]
+      );
+
+      if (organizations.length === 0) {
+        return res.status(404).json({ message: 'Organization not found' });
+      }
+
+      const org = organizations[0];
+      
+      // Check if subscription is active
+      if (org.subscription_status !== 'active' && org.subscription_status !== 'trial') {
+        return res.status(403).json({ 
+          message: 'Active subscription required',
+          code: 'SUBSCRIPTION_REQUIRED'
+        });
+      }
+
+      // Get plan limits
+      const planLimits = {
+        basic: { properties: 3, tenants: 50, documents: 100, maintenance_requests: 50 },
+        professional: { properties: 20, tenants: 200, documents: 500, maintenance_requests: 200 },
+        enterprise: { properties: -1, tenants: -1, documents: -1, maintenance_requests: -1 }
+      };
+
+      const currentLimits = planLimits[org.subscription_plan] || planLimits.basic;
+      const limit = currentLimits[feature];
+      
+      // If unlimited (-1), allow access
+      if (limit === -1) {
+        return next();
+      }
+
+      // Get current usage based on feature
+      let countQuery;
+      switch (feature) {
+        case 'properties':
+          countQuery = 'SELECT COUNT(*) as count FROM properties WHERE organization_id = ? AND is_active = TRUE';
+          break;
+        case 'tenants':
+          countQuery = 'SELECT COUNT(*) as count FROM tenants WHERE organization_id = ? AND is_active = TRUE';
+          break;
+        case 'documents':
+          countQuery = 'SELECT COUNT(*) as count FROM documents WHERE organization_id = ? AND is_active = TRUE';
+          break;
+        case 'maintenance_requests':
+          countQuery = 'SELECT COUNT(*) as count FROM maintenance_requests WHERE organization_id = ?';
+          break;
+        default:
+          return next(); // Unknown feature, allow access
+      }
+
+      const [result] = await db.execute(countQuery, [req.user.organization_id]);
+      const currentUsage = result[0].count;
+
+      if (currentUsage >= limit) {
+        return res.status(403).json({
+          message: `You have reached the limit for ${feature} on your current plan`,
+          code: 'PLAN_LIMIT_EXCEEDED',
+          currentUsage,
+          limit,
+          plan: org.subscription_plan,
+          feature
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Plan limit check error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
+};
+
+module.exports = { checkPlanLimit };

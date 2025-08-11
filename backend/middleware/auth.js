@@ -14,7 +14,7 @@ const authenticateToken = async (req, res, next) => {
     
     // Get user details
     const [users] = await db.execute(
-      'SELECT u.*, o.subscription_status, o.trial_end_date FROM users u JOIN organizations o ON u.organization_id = o.id WHERE u.id = ? AND u.is_active = TRUE',
+      'SELECT u.*, o.subscription_status, o.trial_end_date, o.next_renewal_date, o.overdue_since FROM users u JOIN organizations o ON u.organization_id = o.id WHERE u.id = ? AND u.is_active = TRUE',
       [decoded.userId]
     );
 
@@ -23,10 +23,26 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const user = users[0];
+    const today = new Date();
 
-    // Check if organization is active and within trial/subscription period
-    if (user.subscription_status === 'trial' && new Date() > new Date(user.trial_end_date)) {
+    // Check if trial has expired
+    if (user.subscription_status === 'trial' && today > new Date(user.trial_end_date)) {
       return res.status(403).json({ message: 'Trial period has expired' });
+    }
+
+    // Check if subscription is overdue
+    if (user.subscription_status === 'active' && user.next_renewal_date && today > new Date(user.next_renewal_date)) {
+      // Mark as overdue if not already marked
+      if (!user.overdue_since) {
+        await db.execute(
+          'UPDATE organizations SET subscription_status = "overdue", overdue_since = CURDATE() WHERE id = ?',
+          [user.organization_id]
+        );
+      }
+      return res.status(403).json({ 
+        message: 'Subscription payment is overdue. Please renew to continue using the service.',
+        code: 'SUBSCRIPTION_OVERDUE'
+      });
     }
 
     if (user.subscription_status === 'suspended' || user.subscription_status === 'cancelled') {

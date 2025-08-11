@@ -8,6 +8,7 @@ const {
   deleteProperty
 } = require('../controllers/propertyController');
 const { authenticateToken, authorize } = require('../middleware/auth');
+const { checkPlanLimit } = require('../middleware/planLimits');
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ const propertyValidation = [
   body('city').notEmpty().withMessage('City is required'),
 ];
 
-router.post('/', authenticateToken, authorize('landlord', 'admin'), propertyValidation, createProperty);
+router.post('/', authenticateToken, authorize('landlord', 'admin'), checkPlanLimit('properties'), propertyValidation, createProperty);
 router.get('/', authenticateToken, getProperties);
 router.get('/:id', authenticateToken, getPropertyById);
 router.put('/:id', authenticateToken, authorize('landlord', 'admin'), propertyValidation, updateProperty);

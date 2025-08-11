@@ -8,6 +8,7 @@ const {
   deleteTenant
 } = require('../controllers/tenantController');
 const { authenticateToken, authorize } = require('../middleware/auth');
+const { checkPlanLimit } = require('../middleware/planLimits');
 const { terminateTenant } = require('../controllers/tenantController');
 
 const router = express.Router();
@@ -23,7 +24,7 @@ const tenantValidation = [
   body('houseNo').notEmpty().withMessage('House number is required'),
 ];
 
-router.post('/', authenticateToken, authorize('landlord', 'admin'), tenantValidation, createTenant);
+router.post('/', authenticateToken, authorize('landlord', 'admin'), checkPlanLimit('tenants'), tenantValidation, createTenant);
 router.get('/', authenticateToken, getTenants);
 router.get('/:id', authenticateToken, getTenantById);
 router.put('/:id', authenticateToken, authorize('landlord', 'admin'), tenantValidation, updateTenant);

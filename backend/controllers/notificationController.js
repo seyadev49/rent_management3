@@ -89,6 +89,89 @@ const generateSystemNotifications = async () => {
     // 1. Generate monthly rent payments for active contracts
     await generateMonthlyRentPayments();
 
+    // 2. Check for subscription renewals (7, 3, and 1 days before expiry)
+    const [subscriptionsExpiring] = await db.execute(`
+      SELECT o.*, u.id as user_id, u.full_name as user_name,
+             DATEDIFF(o.next_renewal_date, CURDATE()) as days_left
+      FROM organizations o
+      JOIN users u ON o.id = u.organization_id AND u.role = 'landlord'
+      WHERE o.subscription_status = 'active' 
+      AND DATEDIFF(o.next_renewal_date, CURDATE()) IN (7, 3, 1)
+    `);
+
+    for (const subscription of subscriptionsExpiring) {
+      let notificationType, title;
+      if (subscription.days_left === 7) {
+        notificationType = 'subscription_renewal_7';
+        title = 'Subscription Renewal Due Soon (7 days)';
+      } else if (subscription.days_left === 3) {
+        notificationType = 'subscription_renewal_3';
+        title = 'Subscription Expires in 3 Days';
+      } else if (subscription.days_left === 1) {
+        notificationType = 'subscription_renewal_1';
+        title = 'URGENT: Subscription Expires Tomorrow';
+      }
+
+      const [existing] = await db.execute(
+        'SELECT id FROM notifications WHERE type = ? AND user_id = ? AND DATE(created_at) = CURDATE()',
+        [notificationType, subscription.user_id]
+      );
+
+      if (existing.length === 0) {
+        await db.execute(
+          `INSERT INTO notifications (organization_id, user_id, title, message, type) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            subscription.id,
+            subscription.user_id,
+            title,
+            `Your ${subscription.subscription_plan} subscription expires in ${subscription.days_left} day(s). Please renew to continue using RentFlow.`,
+            notificationType
+          ]
+        );
+        console.log(`Created subscription renewal notification for ${subscription.user_name} (${subscription.days_left} days)`);
+      }
+    }
+
+    // 3. Check for overdue subscriptions
+    const [overdueSubscriptions] = await db.execute(`
+      SELECT o.*, u.id as user_id, u.full_name as user_name,
+             DATEDIFF(CURDATE(), o.next_renewal_date) as days_overdue
+      FROM organizations o
+      JOIN users u ON o.id = u.organization_id AND u.role = 'landlord'
+      WHERE o.subscription_status = 'active' 
+      AND o.next_renewal_date < CURDATE()
+    `);
+
+    for (const subscription of overdueSubscriptions) {
+      // Mark subscription as overdue
+      await db.execute(
+        'UPDATE organizations SET subscription_status = "overdue", overdue_since = CURDATE() WHERE id = ?',
+        [subscription.id]
+      );
+
+      // Only send overdue notification once per day
+      const [existing] = await db.execute(
+        'SELECT id FROM notifications WHERE type = ? AND user_id = ? AND DATE(created_at) = CURDATE()',
+        ['subscription_overdue', subscription.user_id]
+      );
+
+      if (existing.length === 0) {
+        await db.execute(
+          `INSERT INTO notifications (organization_id, user_id, title, message, type) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            subscription.id,
+            subscription.user_id,
+            'Subscription Payment Overdue',
+            `Your subscription payment is ${subscription.days_overdue} day(s) overdue. Please renew immediately to regain access to your account.`,
+            'subscription_overdue'
+          ]
+        );
+        console.log(`Created overdue subscription notification for ${subscription.user_name} (${subscription.days_overdue} days overdue)`);
+      }
+    }
+
     // 2. Check for lease renewals (60 and 30 days before expiry)
     const [contractsExpiring] = await db.execute(`
       SELECT rc.*, u.id as landlord_id, t.full_name as tenant_name, p.name as property_name,
