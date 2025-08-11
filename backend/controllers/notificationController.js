@@ -268,7 +268,7 @@ const generateMonthlyRentPayments = async () => {
 
     // Get all active contracts
     const [contracts] = await db.execute(`
-      SELECT rc.*, t.id as tenant_id, t.full_name as tenant_name
+      SELECT rc.*, t.id AS tenant_id, t.full_name AS tenant_name
       FROM rental_contracts rc
       JOIN tenants t ON rc.tenant_id = t.id
       WHERE rc.status = 'active'
@@ -279,32 +279,43 @@ const generateMonthlyRentPayments = async () => {
     const currentYear = today.getFullYear();
 
     for (const contract of contracts) {
-      // Check if payment already exists for current month
+      // Check if payment already exists for this month
       const [existingPayments] = await db.execute(
-        `SELECT id, status FROM payments 
+        `SELECT id FROM payments
          WHERE contract_id = ? AND MONTH(due_date) = ? AND YEAR(due_date) = ?`,
         [contract.id, currentMonth, currentYear]
       );
 
-      // Only create payment if none exists for this month
-      if (existingPayments.length === 0) {
-        // Calculate due date (use payment_due_day from contract, default to 1st)
-        const dueDay = contract.payment_due_day || 1;
-        const dueDate = new Date(currentYear, currentMonth - 1, dueDay);
-        
-        // Only create if we're within the contract period
-        const contractStart = new Date(contract.contract_start_date);
-        const contractEnd = new Date(contract.contract_end_date);
-        
-        if (dueDate >= contractStart && dueDate <= contractEnd) {
-          await db.execute(
-            `INSERT INTO payments (organization_id, contract_id, tenant_id, amount, payment_date, due_date, payment_type, status, notes) 
-             VALUES (?, ?, ?, ?, NULL, ?, 'rent', 'pending', 'Auto-generated monthly rent payment')`,
-            [contract.organization_id, contract.id, contract.tenant_id, contract.monthly_rent, dueDate]
-          );
-          
-          console.log(`Generated monthly payment for ${contract.tenant_name} - $${contract.monthly_rent} due ${dueDate.toDateString()}`);
-        }
+      if (existingPayments.length > 0) {
+        continue; // Skip if already exists
+      }
+
+      // Determine due date
+      const dueDay = contract.payment_due_day || 1;
+      const dueDate = new Date(currentYear, currentMonth - 1, dueDay);
+
+      // Ensure within contract period
+      const contractStart = new Date(contract.contract_start_date);
+      const contractEnd = new Date(contract.contract_end_date);
+
+      if (dueDate >= contractStart && dueDate <= contractEnd) {
+        // For NOT NULL payment_date, set it to dueDate initially
+        await db.execute(
+          `INSERT INTO payments (
+            organization_id, contract_id, tenant_id, amount, payment_date, due_date,
+            payment_type, status, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, 'rent', 'pending', 'Auto-generated monthly rent payment')`,
+          [
+            contract.organization_id,
+            contract.id,
+            contract.tenant_id,
+            contract.monthly_rent,
+            dueDate,  // temporary payment date = due date
+            dueDate
+          ]
+        );
+
+        console.log(`Generated monthly payment for ${contract.tenant_name} - $${contract.monthly_rent} due ${dueDate.toDateString()}`);
       }
     }
 

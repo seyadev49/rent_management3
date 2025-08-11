@@ -9,7 +9,7 @@ const getSubscriptionPlans = async (req, res) => {
         price: 29.99,
         interval: 'month',
         features: [
-          'Up to 10 properties',
+          'Up to 3 properties',
           'Up to 50 tenants',
           'Basic payment tracking',
           'Email support'
@@ -21,7 +21,7 @@ const getSubscriptionPlans = async (req, res) => {
         price: 59.99,
         interval: 'month',
         features: [
-          'Up to 50 properties',
+          'Up to 20 properties',
           'Up to 200 tenants',
           'Advanced payment tracking',
           'Maintenance management',
@@ -39,7 +39,6 @@ const getSubscriptionPlans = async (req, res) => {
           'Unlimited tenants',
           'Full feature access',
           'Advanced reporting',
-          'API access',
           '24/7 phone support'
         ]
       }
