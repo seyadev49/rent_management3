@@ -59,6 +59,10 @@ const getSubscriptionPlans = async (req, res) => {
           'Unlimited properties',
           'Unlimited tenants',
           'Full feature access',
+          'Advanced integrations',
+          'Dedicated support',
+          'Custom reporting',
+          'API access',
           'Advanced reporting',
           'Unlimited document storage',
           '24/7 phone support',
@@ -78,22 +82,23 @@ const upgradeSubscription = async (req, res) => {
   try {
     const { planId, paymentMethod, billingCycle = 'monthly' } = req.body;
 
-    const planPrices = {
-      basic: { monthly: 29.99, annual: 299.99, 'semi-annual': 149.99 },
-      professional: { monthly: 59.99, annual: 599.99, 'semi-annual': 299.99 },
-      enterprise: { monthly: 99.99, annual: 999.99, 'semi-annual': 499.99 }
-    };
+    const plans = [
+      { id: 'basic', name: 'Basic Plan', price: 29.99, interval: 'month', limits: { properties: 3, tenants: 50, documents: 100, maintenance_requests: 50 } },
+      { id: 'professional', name: 'Professional Plan', price: 59.99, interval: 'month', limits: { properties: 20, tenants: 200, documents: 500, maintenance_requests: 200 } },
+      { id: 'enterprise', name: 'Enterprise Plan', price: 99.99, interval: 'month', limits: { properties: -1, tenants: -1, documents: -1, maintenance_requests: -1 } }
+    ];
 
-    if (!planPrices[planId] || !planPrices[planId][billingCycle]) {
-      return res.status(400).json({ message: 'Invalid plan or billing cycle selected' });
+    const selectedPlan = plans.find(p => p.id === planId);
+    if (!selectedPlan) {
+      return res.status(400).json({ message: 'Invalid plan selected' });
     }
 
-    const price = planPrices[planId][billingCycle];
-    
-    // Calculate next renewal date based on billing cycle
+    const price = selectedPlan.price;
+
+    // Calculate next renewal date
     const currentDate = new Date();
     let nextRenewalDate = new Date(currentDate);
-    
+
     switch (billingCycle) {
       case 'monthly':
         nextRenewalDate.setMonth(nextRenewalDate.getMonth() + 1);
@@ -106,6 +111,9 @@ const upgradeSubscription = async (req, res) => {
         break;
     }
 
+    // Ensure date is in MySQL format
+    const mysqlDate = nextRenewalDate.toISOString().split('T')[0];
+
     // Update organization subscription
     await db.execute(
       `UPDATE organizations 
@@ -116,14 +124,14 @@ const upgradeSubscription = async (req, res) => {
            next_renewal_date = ?,
            trial_end_date = ?
        WHERE id = ?`,
-      [planId, price, billingCycle, nextRenewalDate, nextRenewalDate, req.user.organization_id]
+      [planId, price, billingCycle, mysqlDate, mysqlDate, req.user.organization_id]
     );
 
-    // Create subscription record
+    // Insert subscription history record
     await db.execute(
       `INSERT INTO subscription_history (organization_id, plan_id, amount, payment_method, billing_cycle, status, start_date, end_date) 
        VALUES (?, ?, ?, ?, ?, 'active', CURDATE(), ?)`,
-      [req.user.organization_id, planId, price, paymentMethod, billingCycle, nextRenewalDate]
+      [req.user.organization_id, planId, price, paymentMethod, billingCycle, mysqlDate]
     );
 
     res.json({
@@ -131,8 +139,9 @@ const upgradeSubscription = async (req, res) => {
       plan: planId,
       amount: price,
       billingCycle,
-      nextRenewalDate
+      nextRenewalDate: mysqlDate
     });
+
   } catch (error) {
     console.error('Upgrade subscription error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -236,7 +245,7 @@ const getSubscriptionStatus = async (req, res) => {
 
 const checkPlanLimits = async (req, res) => {
   try {
-    const { feature } = req.params;
+    const { feature } = req.params;   
     
     // Get current subscription
     const [organizations] = await db.execute(
@@ -250,8 +259,8 @@ const checkPlanLimits = async (req, res) => {
 
     const org = organizations[0];
     
-    // Check if subscription is active
-    if (org.subscription_status !== 'active' && org.subscription_status !== 'trial') {
+    // Check if subscription is suspended or cancelled
+    if (org.subscription_status === 'suspended' || org.subscription_status === 'cancelled') {
       return res.status(403).json({ 
         message: 'Subscription required',
         canAccess: false,
@@ -259,55 +268,49 @@ const checkPlanLimits = async (req, res) => {
       });
     }
 
-    // Get plan limits
+    // Plan limits
     const planLimits = {
       basic: { properties: 3, tenants: 50, documents: 100, maintenance_requests: 50 },
       professional: { properties: 20, tenants: 200, documents: 500, maintenance_requests: 200 },
       enterprise: { properties: -1, tenants: -1, documents: -1, maintenance_requests: -1 }
     };
 
-    const currentLimits = planLimits[org.subscription_plan] || planLimits.basic;
-    
-    // Get current usage
-    const [propertiesCount] = await db.execute(
-      'SELECT COUNT(*) as count FROM properties WHERE organization_id = ? AND is_active = TRUE',
-      [req.user.organization_id]
-    );
-    
-    const [tenantsCount] = await db.execute(
-      'SELECT COUNT(*) as count FROM tenants WHERE organization_id = ? AND is_active = TRUE',
-      [req.user.organization_id]
-    );
-    
-    const [documentsCount] = await db.execute(
-      'SELECT COUNT(*) as count FROM documents WHERE organization_id = ? AND is_active = TRUE',
-      [req.user.organization_id]
-    );
-    
-    const [maintenanceCount] = await db.execute(
-      'SELECT COUNT(*) as count FROM maintenance_requests WHERE organization_id = ?',
-      [req.user.organization_id]
-    );
+    // For expired trial or overdue, use basic plan limits
+    let currentPlan = org.subscription_plan || 'basic';
+    if (org.subscription_status === 'expired_trial' || org.subscription_status === 'overdue') {
+      currentPlan = 'basic';
+    }
 
-    const currentUsage = {
-      properties: propertiesCount[0].count,
-      tenants: tenantsCount[0].count,
-      documents: documentsCount[0].count,
-      maintenance_requests: maintenanceCount[0].count
-    };
+    const limit = planLimits[currentPlan][feature];
 
-    // Check if feature is allowed and within limits
-    const limit = currentLimits[feature];
-    const usage = currentUsage[feature];
-    
-    const canAccess = limit === -1 || usage < limit;
-    
+    // Get current usage based on feature
+    let countQuery;
+    switch (feature) {
+      case 'properties':
+        countQuery = 'SELECT COUNT(*) as count FROM properties WHERE organization_id = ? AND is_active = TRUE';
+        break;
+      case 'tenants':
+        countQuery = 'SELECT COUNT(*) as count FROM tenants WHERE organization_id = ? AND is_active = TRUE';
+        break;
+      case 'documents':
+        countQuery = 'SELECT COUNT(*) as count FROM documents WHERE organization_id = ? AND is_active = TRUE';
+        break;
+      case 'maintenance_requests':
+        countQuery = 'SELECT COUNT(*) as count FROM maintenance_requests WHERE organization_id = ?';
+        break;
+      default:
+        return res.json({ canAccess: true, currentUsage: 0, limit, plan: currentPlan });
+    }
+
+    const [result] = await db.execute(countQuery, [req.user.organization_id]);
+    const currentUsage = result[0].count;
+
     res.json({
-      canAccess,
-      currentUsage: usage,
+      canAccess: currentUsage < limit || limit === -1,
+      currentUsage,
       limit: limit === -1 ? 'unlimited' : limit,
-      plan: org.subscription_plan,
-      reason: canAccess ? null : 'limit_exceeded'
+      plan: currentPlan,
+      feature
     });
   } catch (error) {
     console.error('Check plan limits error:', error);

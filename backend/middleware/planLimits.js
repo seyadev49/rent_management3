@@ -14,13 +14,21 @@ const checkPlanLimit = (feature) => {
       }
 
       const org = organizations[0];
-      
-      // Check if subscription is active
-      if (org.subscription_status !== 'active' && org.subscription_status !== 'trial') {
+
+      // Allow access for active, trial, expired_trial, and overdue subscriptions
+      // Only block for suspended or cancelled
+      if (org.subscription_status === 'suspended' || org.subscription_status === 'cancelled') {
         return res.status(403).json({ 
-          message: 'Active subscription required',
-          code: 'SUBSCRIPTION_REQUIRED'
+          message: 'Subscription required',
+          canAccess: false,
+          reason: 'inactive_subscription'
         });
+      }
+
+      // For expired trial or overdue, use basic plan limits
+      let currentPlan = org.subscription_plan || 'basic';
+      if (org.subscription_status === 'expired_trial' || org.subscription_status === 'overdue') {
+        currentPlan = 'basic';
       }
 
       // Get plan limits
@@ -30,9 +38,8 @@ const checkPlanLimit = (feature) => {
         enterprise: { properties: -1, tenants: -1, documents: -1, maintenance_requests: -1 }
       };
 
-      const currentLimits = planLimits[org.subscription_plan] || planLimits.basic;
-      const limit = currentLimits[feature];
-      
+      const limit = planLimits[currentPlan][feature];
+
       // If unlimited (-1), allow access
       if (limit === -1) {
         return next();

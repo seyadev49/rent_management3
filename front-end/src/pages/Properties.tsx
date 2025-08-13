@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Plus, Edit, Trash2, Users, MapPin, FileText, Home } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, MapPin, FileText, Home } from 'lucide-react';
 
 interface Property {
   id: number;
@@ -310,39 +310,53 @@ const Properties: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const response = await fetch('http://localhost:5000/api/properties', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-      if (response.ok) {
-        setShowAddModal(false);
-        setFormData({
-          name: '',
-          type: 'apartment',
-          address: '',
-          city: '',
-          subcity: '',
-          woreda: '',
-          description: '',
-          totalUnits: 1,
-          amenities: [],
-          units: [],
-        });
-        fetchProperties();
+  try {
+    const response = await fetch('http://localhost:5000/api/properties', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(formData),
+    });
+
+    if (response.ok) {
+      // Reset form and refresh list
+      setShowAddModal(false);
+      setFormData({
+        name: '',
+        type: 'apartment',
+        address: '',
+        city: '',
+        subcity: '',
+        woreda: '',
+        description: '',
+        totalUnits: 1,
+        amenities: [],
+        units: [],
+      });
+      fetchProperties();
+    } else {
+      // Try to read the error JSON from backend
+      let errorMessage = 'Something went wrong. Please try again.';
+      try {
+        const data = await response.json();
+        if (data?.message) {
+          errorMessage = data.message;
+        }
+      } catch {
+        // If response isn't JSON, ignore and use default
       }
-    } catch (error) {
-      console.error('Failed to create property:', error);
+      alert(errorMessage);
     }
-  };
+  } catch (error) {
+    console.error('Failed to create property:', error);
+    alert('Failed to create property. Please check your network connection.');
+  }
+};
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

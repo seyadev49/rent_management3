@@ -25,12 +25,12 @@ const authenticateToken = async (req, res, next) => {
     const user = users[0];
     const today = new Date();
 
-    // Check if trial has expired
+    // Check if trial has expired - allow basic access but mark as expired
     if (user.subscription_status === 'trial' && today > new Date(user.trial_end_date)) {
-      return res.status(403).json({ message: 'Trial period has expired' });
+      user.subscription_status = 'expired_trial';
     }
 
-    // Check if subscription is overdue
+    // Check if subscription is overdue - allow access but mark as overdue
     if (user.subscription_status === 'active' && user.next_renewal_date && today > new Date(user.next_renewal_date)) {
       // Mark as overdue if not already marked
       if (!user.overdue_since) {
@@ -39,12 +39,10 @@ const authenticateToken = async (req, res, next) => {
           [user.organization_id]
         );
       }
-      return res.status(403).json({ 
-        message: 'Subscription payment is overdue. Please renew to continue using the service.',
-        code: 'SUBSCRIPTION_OVERDUE'
-      });
+      user.subscription_status = 'overdue';
     }
 
+    // Only block access for suspended or cancelled subscriptions
     if (user.subscription_status === 'suspended' || user.subscription_status === 'cancelled') {
       return res.status(403).json({ message: 'Subscription is not active' });
     }
