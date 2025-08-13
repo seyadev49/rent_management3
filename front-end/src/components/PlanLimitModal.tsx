@@ -40,6 +40,11 @@ const PlanLimitModal: React.FC<PlanLimitModalProps> = ({
     }
   };
 
+  const getUpgradeMessage = (feature: string, currentPlan: string) => {
+    const featureName = getFeatureDisplayName(feature);
+    return `You need more ${featureName} to continue growing your business. Upgrade to ${getRecommendedPlan(currentPlan)} plan to unlock higher limits and additional features.`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -71,7 +76,7 @@ const PlanLimitModal: React.FC<PlanLimitModalProps> = ({
             <div className="mt-3 text-center sm:mt-0 sm:text-left">
               <div className="mt-2">
                 <p className="text-sm text-gray-500 mb-4">
-                  You've reached the limit for {getFeatureDisplayName(feature)} on your current {currentPlan} plan.
+                  {getUpgradeMessage(feature, currentPlan)}
                 </p>
                 
                 <div className="bg-gray-50 rounded-lg p-4 mb-4">
@@ -89,10 +94,10 @@ const PlanLimitModal: React.FC<PlanLimitModalProps> = ({
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h4 className="text-sm font-medium text-blue-900 mb-2">
-                    Upgrade to {getRecommendedPlan(currentPlan)} Plan
+                    🚀 Upgrade to {getRecommendedPlan(currentPlan)} Plan Today
                   </h4>
                   <p className="text-sm text-blue-700 mb-3">
-                    Get more {getFeatureDisplayName(feature)} and unlock additional features to grow your business.
+                    Don't let limits slow you down! Get more {getFeatureDisplayName(feature)} and unlock powerful features to scale your property management business.
                   </p>
                   <ul className="text-sm text-blue-700 space-y-1">
                     {currentPlan === 'basic' && (

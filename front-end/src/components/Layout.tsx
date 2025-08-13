@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationDropdown from './NotificationDropdown';
@@ -20,6 +20,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
+import { usePlanLimitContext } from '../contexts/PlanLimitContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,8 +31,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showPlanLimitModal, setShowPlanLimitModal] = useState(false);
-  const [planLimitData, setPlanLimitData] = useState<any>(null);
+  const { isModalOpen, showPlanLimitModal, hidePlanLimitModal, planLimitData } = usePlanLimitContext();
   const [isDarkMode, setIsDarkMode] = useState(false); // State for dark mode
 
   const toggleDarkMode = () => {
@@ -44,9 +44,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
+  // This function is now called by the usePlanLimits hook when a limit is reached
   const handlePlanLimitReached = (limitData: any) => {
-    setPlanLimitData(limitData);
-    setShowPlanLimitModal(true);
+    showPlanLimitModal(limitData);
   };
 
   // Don't render layout if subscription is overdue
@@ -103,7 +103,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <p className="text-xs text-yellow-600 mt-1">
                 Expires: {new Date(user.trialEndDate).toLocaleDateString()}
               </p>
-              <button 
+              <button
                 onClick={() => setShowUpgradeModal(true)}
                 className="mt-2 text-xs text-yellow-800 hover:text-yellow-900 font-medium"
               >
@@ -189,17 +189,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </main>
       </div>
 
-      <UpgradeModal 
-        isOpen={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
       />
-      
+
       {planLimitData && (
         <PlanLimitModal
-          isOpen={showPlanLimitModal}
-          onClose={() => setShowPlanLimitModal(false)}
+          isOpen={isModalOpen}
+          onClose={hidePlanLimitModal}
           onUpgrade={() => {
-            setShowPlanLimitModal(false);
+            hidePlanLimitModal();
             setShowUpgradeModal(true);
           }}
           feature={planLimitData.feature}

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
+import { PlanLimitProvider } from './contexts/PlanLimitContext';
 import Layout from './components/Layout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -21,35 +22,37 @@ function App() {
       <AuthProvider>
         <ThemeProvider>
           <ToastProvider>
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Routes>
-                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/properties" element={<Properties />} />
-                        <Route path="/tenants" element={<Tenants />} />
-                        <Route path="/payments" element={<Payments />} />
-                        <Route path="/maintenance" element={<Maintenance />} />
-                        <Route path="/documents" element={<Documents />} />
-                        <Route path="/settings" element={<Settings />} />
-                      </Routes>
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </div>
-        </ToastProvider>
-      </ThemeProvider>
-    </AuthProvider>
-  </Router>
+            <PlanLimitProvider>
+              <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <Layout>
+                          <Routes>
+                            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/properties" element={<Properties />} />
+                            <Route path="/tenants" element={<Tenants />} />
+                            <Route path="/payments" element={<Payments />} />
+                            <Route path="/maintenance" element={<Maintenance />} />
+                            <Route path="/documents" element={<Documents />} />
+                            <Route path="/settings" element={<Settings />} />
+                          </Routes>
+                        </Layout>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </div>
+            </PlanLimitProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

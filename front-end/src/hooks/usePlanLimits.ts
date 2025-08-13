@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,6 +8,16 @@ interface PlanLimitResponse {
   limit: number | string;
   plan: string;
   reason?: string;
+  feature?: string;
+}
+
+interface PlanLimitError {
+  canAccess: false;
+  currentUsage: number;
+  limit: number | string;
+  plan: string;
+  reason: string;
+  feature: string;
 }
 
 export const usePlanLimits = () => {
@@ -35,7 +46,8 @@ export const usePlanLimits = () => {
             currentUsage: errorData.currentUsage,
             limit: errorData.limit,
             plan: errorData.plan,
-            reason: errorData.code
+            reason: errorData.code,
+            feature: errorData.feature
           };
         }
       }
@@ -48,7 +60,7 @@ export const usePlanLimits = () => {
     return null;
   }, [token]);
 
-  const handleApiError = useCallback((error: any, feature: string) => {
+  const handleApiError = useCallback((error: any, feature: string): PlanLimitError | null => {
     if (error.response?.status === 403 && error.response?.data?.code === 'PLAN_LIMIT_EXCEEDED') {
       return {
         canAccess: false,
@@ -62,9 +74,25 @@ export const usePlanLimits = () => {
     return null;
   }, []);
 
+  const createLimitCheckWrapper = useCallback((apiCall: Function, feature: string, onLimitReached?: (limitData: PlanLimitError) => void) => {
+    return async (...args: any[]) => {
+      try {
+        return await apiCall(...args);
+      } catch (error: any) {
+        const limitError = handleApiError(error, feature);
+        if (limitError && onLimitReached) {
+          onLimitReached(limitError);
+          return null;
+        }
+        throw error;
+      }
+    };
+  }, [handleApiError]);
+
   return {
     checkPlanLimit,
     handleApiError,
+    createLimitCheckWrapper,
     loading
   };
 };

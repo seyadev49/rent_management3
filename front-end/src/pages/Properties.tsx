@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useApiWithLimitCheck } from '../hooks/useApiWithLimitCheck';
 import { Building2, Plus, Edit, Trash2, MapPin, FileText, Home } from 'lucide-react';
 
 interface Property {
@@ -9,10 +10,14 @@ interface Property {
   address: string;
   city: string;
   subcity: string;
+  woreda?: string;
+  description?: string;
   total_units: number;
   occupied_units: number;
   vacant_units: number;
   created_at: string;
+  amenities?: string[];
+  units?: any[];
 }
 
 interface Unit {
@@ -35,7 +40,8 @@ interface Contract {
 }
 
 const Properties: React.FC = () => {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
+  const { apiCall } = useApiWithLimitCheck();
   const [properties, setProperties] = useState<Property[]>([]);
   const [showUnitsModal, setShowUnitsModal] = useState(false);
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
@@ -46,6 +52,9 @@ const Properties: React.FC = () => {
   const [tenants, setTenants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null); // State to track editing
+  const [formLoading, setFormLoading] = useState(false); // For submission loading state
+
   const [unitFormData, setUnitFormData] = useState({
     propertyId: '',
     unitNumber: '',
@@ -89,6 +98,7 @@ const Properties: React.FC = () => {
   }, [token]);
 
   const fetchProperties = async () => {
+    setLoading(true);
     try {
       const response = await fetch('http://localhost:5000/api/properties', {
         headers: {
@@ -99,6 +109,8 @@ const Properties: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setProperties(data.properties);
+      } else {
+        console.error('Failed to fetch properties:', response.status);
       }
     } catch (error) {
       console.error('Failed to fetch properties:', error);
@@ -109,15 +121,20 @@ const Properties: React.FC = () => {
 
   const fetchPropertyUnits = async (propertyId: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/units?propertyId=${propertyId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const makeApiCall = async () => {
+        return await fetch(`http://localhost:5000/api/units?propertyId=${propertyId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      };
+      const response = await apiCall(makeApiCall, 'units');
 
       if (response.ok) {
         const data = await response.json();
         setPropertyUnits(data.units);
+      } else {
+        console.error("Failed to fetch property units, possibly due to limit:", response.status);
       }
     } catch (error) {
       console.error('Failed to fetch property units:', error);
@@ -125,15 +142,20 @@ const Properties: React.FC = () => {
   };
   const fetchTenants = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/tenants', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const makeApiCall = async () => {
+        return await fetch('http://localhost:5000/api/tenants', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      };
+      const response = await apiCall(makeApiCall, 'tenants');
 
       if (response.ok) {
         const data = await response.json();
         setTenants(data.tenants);
+      } else {
+        console.error("Failed to fetch tenants, possibly due to limit:", response.status);
       }
     } catch (error) {
       console.error('Failed to fetch tenants:', error);
@@ -142,16 +164,21 @@ const Properties: React.FC = () => {
 
   const fetchAvailableUnits = async (propertyId: number) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/units?propertyId=${propertyId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const makeApiCall = async () => {
+        return await fetch(`http://localhost:5000/api/units?propertyId=${propertyId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      };
+      const response = await apiCall(makeApiCall, 'units');
 
       if (response.ok) {
         const data = await response.json();
         const vacantUnits = data.units?.filter((unit: any) => !unit.is_occupied) || [];
         setAvailableUnits(vacantUnits);
+      } else {
+        console.error("Failed to fetch available units, possibly due to limit:", response.status);
       }
     } catch (error) {
       console.error('Failed to fetch property units:', error);
@@ -175,33 +202,46 @@ const Properties: React.FC = () => {
 
   const handleUnitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      const response = await fetch('http://localhost:5000/api/units', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...unitFormData,
-          floorNumber: unitFormData.floorNumber ? parseInt(unitFormData.floorNumber) : null,
-          roomCount: unitFormData.roomCount ? parseInt(unitFormData.roomCount) : null,
-          monthlyRent: parseFloat(unitFormData.monthlyRent),
-          deposit: parseFloat(unitFormData.deposit),
-        }),
-      });
 
-      if (response.ok) {
+    try {
+      const makeApiCall = async () => {
+        const response = await fetch('http://localhost:5000/api/units', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...unitFormData,
+            floorNumber: unitFormData.floorNumber ? parseInt(unitFormData.floorNumber) : null,
+            roomCount: unitFormData.roomCount ? parseInt(unitFormData.roomCount) : null,
+            monthlyRent: parseFloat(unitFormData.monthlyRent),
+            deposit: parseFloat(unitFormData.deposit),
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw { response: { status: response.status, data: errorData } };
+        }
+        return response.json();
+      };
+
+      const result = await apiCall(makeApiCall, 'units');
+
+      if (result) {
         setShowAddUnitModal(false);
         resetUnitForm();
-        fetchProperties(); // Refresh to update unit counts
+        fetchProperties();
         if (showUnitsModal && selectedProperty) {
-          fetchPropertyUnits(selectedProperty.id); // Refresh units list if modal is open
+          fetchPropertyUnits(selectedProperty.id);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create unit:', error);
+      if (error?.response?.status !== 403) {
+        alert('Failed to create unit');
+      }
     }
   };
 
@@ -227,21 +267,26 @@ const Properties: React.FC = () => {
 
   const handleContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      const response = await fetch('http://localhost:5000/api/contracts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(contractFormData),
-      });
+      const makeApiCall = async () => {
+        return await fetch('http://localhost:5000/api/contracts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(contractFormData),
+        });
+      };
+      const response = await apiCall(makeApiCall, 'contracts');
 
       if (response.ok) {
         setShowContractModal(false);
         resetContractForm();
         fetchProperties(); // Refresh to update occupancy
+      } else {
+        console.error("Failed to create contract, possibly due to limit:", response.status);
       }
     } catch (error) {
       console.error('Failed to create contract:', error);
@@ -285,7 +330,7 @@ const Properties: React.FC = () => {
     if (name === 'contractStartDate' || name === 'leaseDuration') {
       const startDate = name === 'contractStartDate' ? new Date(value) : new Date(contractFormData.contractStartDate);
       const duration = name === 'leaseDuration' ? parseInt(value) : contractFormData.leaseDuration;
-      
+
       if (startDate && duration) {
         const endDate = new Date(startDate);
         endDate.setMonth(endDate.getMonth() + duration);
@@ -310,53 +355,63 @@ const Properties: React.FC = () => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormLoading(true);
 
-  try {
-    const response = await fetch('http://localhost:5000/api/properties', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(formData),
-    });
+    try {
+      const url = editingProperty
+        ? `http://localhost:5000/api/properties/${editingProperty.id}`
+        : 'http://localhost:5000/api/properties';
 
-    if (response.ok) {
-      // Reset form and refresh list
-      setShowAddModal(false);
-      setFormData({
-        name: '',
-        type: 'apartment',
-        address: '',
-        city: '',
-        subcity: '',
-        woreda: '',
-        description: '',
-        totalUnits: 1,
-        amenities: [],
-        units: [],
-      });
-      fetchProperties();
-    } else {
-      // Try to read the error JSON from backend
-      let errorMessage = 'Something went wrong. Please try again.';
-      try {
-        const data = await response.json();
-        if (data?.message) {
-          errorMessage = data.message;
+      const method = editingProperty ? 'PUT' : 'POST';
+
+      const makeApiCall = async () => {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw { response: { status: response.status, data: errorData } };
         }
-      } catch {
-        // If response isn't JSON, ignore and use default
+        return response.json();
+      };
+
+      const result = await apiCall(makeApiCall, 'properties');
+
+      if (result) {
+        fetchProperties();
+        setShowAddModal(false);
+        setEditingProperty(null);
+        setSelectedProperty(null);
+        setFormData({
+          name: '',
+          type: 'apartment',
+          address: '',
+          city: '',
+          subcity: '',
+          woreda: '',
+          description: '',
+          totalUnits: 1,
+          amenities: [],
+          units: [],
+        });
       }
-      alert(errorMessage);
+    } catch (error: any) {
+      console.error('Failed to save property:', error);
+      if (error?.response?.status !== 403) {
+        alert(error?.response?.data?.message || 'Failed to save property');
+      }
+    } finally {
+      setFormLoading(false);
     }
-  } catch (error) {
-    console.error('Failed to create property:', error);
-    alert('Failed to create property. Please check your network connection.');
-  }
-};
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -382,7 +437,22 @@ const handleSubmit = async (e: React.FormEvent) => {
           <p className="text-gray-600">Manage your rental properties</p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setEditingProperty(null); // Ensure we are adding a new property
+            setFormData({ // Reset form data for new property
+              name: '',
+              type: 'apartment',
+              address: '',
+              city: '',
+              subcity: '',
+              woreda: '',
+              description: '',
+              totalUnits: 1,
+              amenities: [],
+              units: [],
+            });
+            setShowAddModal(true);
+          }}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -397,7 +467,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="h-48 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
               <Building2 className="h-16 w-16 text-white opacity-80" />
             </div>
-            
+
             <div className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold text-gray-900">{property.name}</h3>
@@ -405,12 +475,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {property.type}
                 </span>
               </div>
-              
+
               <div className="flex items-center text-sm text-gray-600 mb-3">
                 <MapPin className="h-4 w-4 mr-1" />
                 {property.city}, {property.subcity}
               </div>
-              
+
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
                   <p className="text-lg font-semibold text-gray-900">{property.total_units}</p>
@@ -425,26 +495,45 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <p className="text-xs text-gray-600">Vacant</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <button className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200">
+                  <button
+                    onClick={() => {
+                      setEditingProperty(property);
+                      setFormData({
+                        name: property.name,
+                        type: property.type,
+                        address: property.address,
+                        city: property.city,
+                        subcity: property.subcity,
+                        woreda: property.woreda || '',
+                        description: property.description || '',
+                        totalUnits: property.total_units,
+                        amenities: property.amenities || [],
+                        units: property.units || [],
+                      });
+                      setSelectedProperty(property);
+                      setShowAddModal(true);
+                    }}
+                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                  >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
-                  <button 
+                  <button
                     onClick={() => handleViewUnits(property)}
                     className="flex items-center px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                   >
                     <Home className="h-4 w-4 mr-1" />
                     View Units
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleAddUnit(property)}
                     className="flex items-center px-3 py-1 text-sm text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
                   >
@@ -453,9 +542,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </button>
                 </div>
               </div>
-              
+
               <div className="mt-3 pt-3 border-t border-gray-200">
-                <button 
+                <button
                   onClick={() => handleCreateContract(property)}
                   className="w-full flex items-center justify-center px-3 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-200"
                 >
@@ -474,7 +563,14 @@ const handleSubmit = async (e: React.FormEvent) => {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No properties yet</h3>
           <p className="text-gray-600 mb-4">Get started by adding your first property</p>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setEditingProperty(null);
+              setFormData({
+                name: '', type: 'apartment', address: '', city: '', subcity: '',
+                woreda: '', description: '', totalUnits: 1, amenities: [], units: [],
+              });
+              setShowAddModal(true);
+            }}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -633,7 +729,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <h3 className="text-lg font-medium text-gray-900 mb-4">
                       Add Unit - {selectedProperty.name}
                     </h3>
-                    
+
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -756,8 +852,10 @@ const handleSubmit = async (e: React.FormEvent) => {
               <form onSubmit={handleSubmit}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                   <div className="mb-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Property</h3>
-                    
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      {editingProperty ? 'Edit Property' : 'Add New Property'}
+                    </h3>
+
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -837,7 +935,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </div>
                       </div>
 
-
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Description
@@ -864,13 +961,19 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                   <button
                     type="submit"
-                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                    disabled={formLoading}
+                    className={`w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm ${
+                      formLoading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                   >
-                    Add Property
+                    {formLoading ? 'Saving...' : (editingProperty ? 'Update Property' : 'Add Property')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowAddModal(false)}
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingProperty(null); // Clear editing state on cancel
+                    }}
                     className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   >
                     Cancel
@@ -883,7 +986,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       )}
 
       {/* Create Contract Modal */}
-      {showContractModal && (
+      {showContractModal && selectedProperty && ( // Ensure selectedProperty is not null
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
@@ -897,7 +1000,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <h3 className="text-lg font-medium text-gray-900 mb-4">
                       Create Contract - {selectedProperty?.name}
                     </h3>
-                    
+
                     <div className="space-y-6">
                       {/* Basic Contract Info */}
                       <div>

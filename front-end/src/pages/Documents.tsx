@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useApiWithLimitCheck } from '../hooks/useApiWithLimitCheck';
 import { FileText, Plus, Upload, Download, Trash2, Eye } from 'lucide-react';
 
 interface Document {
@@ -15,6 +16,7 @@ interface Document {
 
 const Documents: React.FC = () => {
   const { token } = useAuth();
+  const { apiCall } = useApiWithLimitCheck();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -65,21 +67,34 @@ const Documents: React.FC = () => {
     formData.append('documentType', uploadData.documentType);
 
     try {
-      const response = await fetch('http://localhost:5000/api/documents/upload', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const uploadFn = async () => {
+        const response = await fetch('http://localhost:5000/api/documents/upload', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
 
-      if (response.ok) {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw { response: { status: response.status, data: errorData } };
+        }
+        return response.json();
+      };
+
+      const result = await apiCall(uploadFn, 'documents');
+
+      if (result) {
         setShowUploadModal(false);
         resetUploadForm();
         fetchDocuments();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to upload document:', error);
+      if (error?.response?.status !== 403) {
+        alert('Failed to upload document');
+      }
     }
   };
 
@@ -113,18 +128,31 @@ const Documents: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/documents/${documentId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const deleteFn = async () => {
+        const response = await fetch(`http://localhost:5000/api/documents/${documentId}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (response.ok) {
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw { response: { status: response.status, data: errorData } };
+        }
+        return response.json();
+      };
+
+      const result = await apiCall(deleteFn, 'documents');
+
+      if (result) {
         fetchDocuments();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete document:', error);
+      if (error?.response?.status !== 403) {
+        alert('Failed to delete document');
+      }
     }
   };
 
