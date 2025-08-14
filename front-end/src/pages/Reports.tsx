@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  BarChart3, 
-  Download, 
-  Filter, 
+import {
+  BarChart3,
+  Download,
+  Filter,
   Calendar,
   DollarSign,
   Users,
@@ -17,26 +16,26 @@ import {
 } from 'lucide-react';
 
 interface ReportData {
-  financial: {
+  financial?: {
     totalCollected: number;
     outstanding: number;
     securityDeposits: number;
     expenses: number;
     revenue: any[];
   };
-  tenant: {
+  tenant?: {
     currentTenants: number;
     pastTenants: number;
     tenantList: any[];
     paymentHistory: any[];
   };
-  property: {
+  property?: {
     occupancyRate: number;
     vacantUnits: any[];
     propertyIncome: any[];
     expiringLeases: any[];
   };
-  maintenance: {
+  maintenance?: {
     openRequests: number;
     completedRequests: number;
     averageResolutionTime: number;
@@ -48,7 +47,7 @@ const Reports: React.FC = () => {
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('financial');
   const [reportData, setReportData] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Set initial loading to true
   const [filters, setFilters] = useState({
     dateRange: 'month',
     startDate: '',
@@ -58,7 +57,7 @@ const Reports: React.FC = () => {
   });
   const [properties, setProperties] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
-
+  const [error, setError] = useState<string | null>(null);
   const tabs = [
     { id: 'financial', name: 'Financial Reports', icon: DollarSign },
     { id: 'tenant', name: 'Tenant Reports', icon: Users },
@@ -92,11 +91,13 @@ const Reports: React.FC = () => {
       setTenants(tenantsData.tenants || []);
     } catch (error) {
       console.error('Error fetching initial data:', error);
+      setError("Failed to load initial filter data.");
     }
   };
 
-  const generateReport = async () => {
+ const generateReport = async () => {
     setLoading(true);
+    setError(null);
     try {
       const queryParams = new URLSearchParams({
         type: activeTab,
@@ -111,14 +112,25 @@ const Reports: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      if (!response.ok) {
+        let msg = 'Failed to load report.';
+        try {
+          const data = await response.json();
+          msg = data.message || msg;
+        } catch {}
+        throw new Error(msg);
+      }
+
       const data = await response.json();
       setReportData(data);
-    } catch (error) {
-      console.error('Error generating report:', error);
+    } catch (error: any) {
+      setError(error.message || 'Failed to load report. Please try again.');
+      setReportData(null); // Clear data on error
     } finally {
       setLoading(false);
     }
   };
+
 
   const exportReport = async (format: 'pdf' | 'excel') => {
     try {
@@ -162,7 +174,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Collected</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${reportData?.financial.totalCollected?.toLocaleString() || 0}
+                ${reportData?.financial?.totalCollected?.toLocaleString() || 0}
               </p>
             </div>
           </div>
@@ -176,7 +188,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Outstanding</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${reportData?.financial.outstanding?.toLocaleString() || 0}
+                ${reportData?.financial?.outstanding?.toLocaleString() || 0}
               </p>
             </div>
           </div>
@@ -190,7 +202,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Security Deposits</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${reportData?.financial.securityDeposits?.toLocaleString() || 0}
+                ${reportData?.financial?.securityDeposits?.toLocaleString() || 0}
               </p>
             </div>
           </div>
@@ -204,7 +216,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Expenses</p>
               <p className="text-2xl font-bold text-gray-900">
-                ${reportData?.financial.expenses?.toLocaleString() || 0}
+                ${reportData?.financial?.expenses?.toLocaleString() || 0}
               </p>
             </div>
           </div>
@@ -236,7 +248,7 @@ const Reports: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {reportData?.financial.revenue?.map((property: any, index: number) => (
+                {reportData?.financial?.revenue?.map((property: any, index: number) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {property.name}
@@ -245,10 +257,10 @@ const Reports: React.FC = () => {
                       ${property.monthlyRevenue?.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {property.occupiedUnits}/{property.totalUnits}
+                      {property.occupiedUnits}/{property.total_units}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {property.occupancyRate}%
+                      {Math.round(property.occupancyRate)}%
                     </td>
                   </tr>
                 ))}
@@ -272,7 +284,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Current Tenants</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.tenant.currentTenants || 0}
+                {reportData?.tenant?.currentTenants || 0}
               </p>
             </div>
           </div>
@@ -286,7 +298,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Past Tenants</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.tenant.pastTenants || 0}
+                {reportData?.tenant?.pastTenants || 0}
               </p>
             </div>
           </div>
@@ -321,7 +333,7 @@ const Reports: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {reportData?.tenant.tenantList?.map((tenant: any, index: number) => (
+                {reportData?.tenant?.tenantList?.map((tenant: any, index: number) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {tenant.full_name}
@@ -360,7 +372,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Occupancy Rate</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.property.occupancyRate || 0}%
+                {reportData?.property?.occupancyRate || 0}%
               </p>
             </div>
           </div>
@@ -374,7 +386,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Vacant Units</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.property.vacantUnits?.length || 0}
+                {reportData?.property?.vacantUnits?.length || 0}
               </p>
             </div>
           </div>
@@ -388,7 +400,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Expiring Leases</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.property.expiringLeases?.length || 0}
+                {reportData?.property?.expiringLeases?.length || 0}
               </p>
             </div>
           </div>
@@ -423,13 +435,13 @@ const Reports: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {reportData?.property.propertyIncome?.map((property: any, index: number) => (
+                {reportData?.property?.propertyIncome?.map((property: any, index: number) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {property.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {property.totalUnits}
+                      {property.total_units}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {property.occupiedUnits}
@@ -462,7 +474,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Open Requests</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.maintenance.openRequests || 0}
+                {reportData?.maintenance?.openRequests || 0}
               </p>
             </div>
           </div>
@@ -476,7 +488,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Completed</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.maintenance.completedRequests || 0}
+                {reportData?.maintenance?.completedRequests || 0}
               </p>
             </div>
           </div>
@@ -490,7 +502,7 @@ const Reports: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Avg Resolution Time</p>
               <p className="text-2xl font-bold text-gray-900">
-                {reportData?.maintenance.averageResolutionTime || 0} days
+                {reportData?.maintenance?.averageResolutionTime || 0} days
               </p>
             </div>
           </div>
@@ -525,7 +537,7 @@ const Reports: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {reportData?.maintenance.requestsByProperty?.map((property: any, index: number) => (
+                {reportData?.maintenance?.requestsByProperty?.map((property: any, index: number) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {property.name}
@@ -664,18 +676,35 @@ const Reports: React.FC = () => {
       </div>
 
       {/* Report Content */}
-      {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
-      ) : (
-        <div>
-          {activeTab === 'financial' && renderFinancialReports()}
-          {activeTab === 'tenant' && renderTenantReports()}
-          {activeTab === 'property' && renderPropertyReports()}
-          {activeTab === 'maintenance' && renderMaintenanceReports()}
-        </div>
-      )}
+      <div className="mt-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-64 bg-red-50 border border-red-200 rounded-lg">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-red-500 mx-auto" />
+              <h3 className="mt-2 text-lg font-medium text-red-800">Error</h3>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
+              <button
+                  onClick={generateReport}
+                  className="mt-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                  Try Again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {/* FIX: Check for the existence of the correct data before rendering each report */}
+            {activeTab === 'financial' && reportData?.financial && renderFinancialReports()}
+            {activeTab === 'tenant' && reportData?.tenant && renderTenantReports()}
+            {activeTab === 'property' && reportData?.property && renderPropertyReports()}
+            {activeTab === 'maintenance' && reportData?.maintenance && renderMaintenanceReports()}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
