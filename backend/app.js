@@ -28,6 +28,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const documentRoutes = require('./routes/document');
 const notificationRoutes = require('./routes/notification');
 const subscriptionRoutes = require('./routes/subscription');
+const reportRoutes = require('./routes/report');
 
 
 // Routes
@@ -42,6 +43,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/reports', reportRoutes);
 
 // // Schedule notification generation to run daily at 9 AM
 // cron.schedule('0 9 * * *', () => {
@@ -49,22 +51,6 @@ app.use('/api/subscription', subscriptionRoutes);
 //   generateSystemNotifications();
 // });
 // Schedule notification generation to run every hour for comprehensive coverage
-cron.schedule('0 * * * *', () => {
-  console.log('Running scheduled notification generation...');
-  generateSystemNotifications();
-});
-
-// Schedule monthly payment generation to run daily at 6 AM
-cron.schedule('0 6 * * *', () => {
-  console.log('Running monthly payment generation...');
-  const { generateMonthlyRentPayments } = require('./controllers/notificationController');
-  generateMonthlyRentPayments();
-});
-
-// Also run on startup
-setTimeout(() => {
-  generateSystemNotifications();
-}, 5000);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -81,4 +67,19 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});cron.schedule('0 * * * *', () => {
+  console.log('Running scheduled notification generation...');
+  generateSystemNotifications();
 });
+
+// Schedule monthly payment generation to run daily at 6 AM
+cron.schedule('0 6 * * *', () => {
+  console.log('Running monthly payment generation...');
+  const { generateMonthlyRentPayments } = require('./controllers/notificationController');
+  generateMonthlyRentPayments();
+});
+
+// Also run on startup
+setTimeout(() => {
+  generateSystemNotifications();
+}, 5000);

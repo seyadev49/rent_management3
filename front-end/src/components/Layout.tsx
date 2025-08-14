@@ -11,6 +11,7 @@ import {
   CreditCard,
   Wrench,
   FileText,
+  BarChart3,
   Settings,
   LogOut,
   Menu,
@@ -61,6 +62,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Payments', to: '/payments', icon: CreditCard },
     { name: 'Maintenance', to: '/maintenance', icon: Wrench },
     { name: 'Documents', to: '/documents', icon: FileText },
+    { name: 'Reports', to: '/reports', icon: BarChart3 },
     { name: 'Settings', to: '/settings', icon: Settings },
   ];
 

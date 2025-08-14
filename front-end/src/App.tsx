@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -13,6 +12,7 @@ import Tenants from './pages/Tenants';
 import Payments from './pages/Payments';
 import Maintenance from './pages/Maintenance';
 import Documents from './pages/Documents';
+import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -40,6 +40,7 @@ function App() {
                             <Route path="/payments" element={<Payments />} />
                             <Route path="/maintenance" element={<Maintenance />} />
                             <Route path="/documents" element={<Documents />} />
+                            <Route path="/reports" element={<Reports />} />
                             <Route path="/settings" element={<Settings />} />
                           </Routes>
                         </Layout>
