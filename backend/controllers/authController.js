@@ -1,8 +1,9 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const db = require('../db/connection');
-const { sendWelcomeEmail } = require('../services/emailService');
+const { sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 const generateToken = (userId, organizationId) => {
   return jwt.sign(
@@ -159,8 +160,122 @@ const getProfile = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Check if user exists
+    const [users] = await db.execute(
+      'SELECT id, full_name, email FROM users WHERE email = ? AND is_active = TRUE',
+      [email]
+    );
+
+    // Always return the same message for security
+    const message = 'If this email exists in our system, a password reset link has been sent.';
+
+    if (users.length === 0) {
+      return res.json({ message });
+    }
+
+    const user = users[0];
+
+    // Generate secure reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date();
+    resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // 1 hour expiry
+
+    // Store reset token in database
+    await db.execute(
+      'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?',
+      [resetToken, resetTokenExpiry, user.id]
+    );
+
+    // Send reset email
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      await sendPasswordResetEmail(user.email, user.full_name, resetToken, frontendUrl);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Don't fail the request if email fails, but log it
+    }
+
+    res.json({ message });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    // Find user with valid reset token
+    const [users] = await db.execute(
+      'SELECT id, email, full_name FROM users WHERE reset_token = ? AND reset_token_expiry > NOW() AND is_active = TRUE',
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    const user = users[0];
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password and clear reset token
+    await db.execute(
+      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+      [hashedPassword, user.id]
+    );
+
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const validateResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+
+    // Check if token exists and is valid
+    const [users] = await db.execute(
+      'SELECT id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW() AND is_active = TRUE',
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    res.json({ message: 'Token is valid' });
+  } catch (error) {
+    console.error('Validate reset token error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   register,
   login,
-  getProfile
+  getProfile,
+  forgotPassword,
+  resetPassword,
+  validateResetToken
 };

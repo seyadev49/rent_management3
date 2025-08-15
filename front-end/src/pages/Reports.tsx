@@ -9,7 +9,6 @@ import {
   Users,
   Building2,
   Wrench,
-  FileText,
   TrendingUp,
   AlertTriangle,
   Home
