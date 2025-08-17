@@ -91,6 +91,8 @@ CREATE TABLE "users" (
   "is_active" tinyint(1) DEFAULT '1',
   "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  "reset_token" varchar(255) DEFAULT NULL,
+  "reset_token_expiry" datetime DEFAULT NULL,
   PRIMARY KEY ("id"),
   UNIQUE KEY "email" ("email"),
   KEY "organization_id" ("organization_id"),

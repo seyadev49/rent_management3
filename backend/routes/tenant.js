@@ -5,7 +5,8 @@ const {
   getTenants,
   getTenantById,
   updateTenant,
-  deleteTenant
+  deleteTenant,
+  getTerminatedTenants
 } = require('../controllers/tenantController');
 const { authenticateToken, authorize } = require('../middleware/auth');
 const { checkPlanLimit } = require('../middleware/planLimits');
@@ -26,6 +27,7 @@ const tenantValidation = [
 
 router.post('/', authenticateToken, authorize('landlord', 'admin'), checkPlanLimit('tenants'), tenantValidation, createTenant);
 router.get('/', authenticateToken, getTenants);
+router.get('/terminated', authenticateToken, getTerminatedTenants);
 router.get('/:id', authenticateToken, getTenantById);
 router.put('/:id', authenticateToken, authorize('landlord', 'admin'), tenantValidation, updateTenant);
 router.delete('/:id', authenticateToken, authorize('landlord', 'admin'), deleteTenant);

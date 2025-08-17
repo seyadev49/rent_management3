@@ -335,11 +335,41 @@ const terminateTenant = async (req, res) => {
   }
 };
 
+
+
+const getTerminatedTenants = async (req, res) => {
+  try {
+    const [tenants] = await db.execute(
+      `SELECT t.*, 
+              rc.id as contract_id,
+              p.name as property_name,
+              pu.unit_number,
+              rc.monthly_rent,
+              rc.contract_start_date,
+              rc.contract_end_date,
+              rc.status as contract_status
+       FROM tenants t
+       LEFT JOIN rental_contracts rc ON t.id = rc.tenant_id AND rc.status = 'terminated'
+       LEFT JOIN properties p ON rc.property_id = p.id
+       LEFT JOIN property_units pu ON rc.unit_id = pu.id
+       WHERE t.organization_id = ? AND t.is_active = TRUE AND t.termination_date IS NOT NULL
+       ORDER BY t.termination_date DESC`,
+      [req.user.organization_id]
+    );
+
+    res.json({ tenants });
+  } catch (error) {
+    console.error('Get terminated tenants error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   createTenant,
   getTenants,
   getTenantById,
   updateTenant,
   deleteTenant,
-  terminateTenant
+  terminateTenant,
+  getTerminatedTenants
 };
