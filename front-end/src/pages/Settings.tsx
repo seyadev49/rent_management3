@@ -40,6 +40,7 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     fetchSubscriptionDetails();
+    fetchOrganizationData();
   }, [token]);
 
   useEffect(() => {
@@ -75,6 +76,31 @@ const Settings: React.FC = () => {
       }
     } catch (error) {
       console.log('Backend server not running or subscription service unavailable');
+    }
+  };
+
+  const fetchOrganizationData = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/organization', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const org = data.organization;
+        setOrganizationData({
+          organizationName: org.name || '',
+          email: org.email || '',
+          phone: org.phone || '',
+          address: org.address || ''
+        });
+      }
+    } catch (error) {
+      console.log('Failed to fetch organization data');
     }
   };
 
@@ -131,17 +157,21 @@ const Settings: React.FC = () => {
         const data = await response.json();
         setUpdateStatus({ type: 'success', message: 'Profile updated successfully!' });
         setIsEditing(false);
-        setProfileData(prev => ({
-          ...prev,
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        }));
         
         // Update user context with new data
         if (setUser && data.user) {
           setUser(data.user);
         }
+        
+        // Immediately sync form state with updated backend data
+        setProfileData({
+          fullName: data.user?.fullName || '',
+          email: data.user?.email || '',
+          phone: data.user?.phone || '',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
         
         // Clear success message after 3 seconds
         setTimeout(() => setUpdateStatus(null), 3000);
@@ -178,12 +208,20 @@ const Settings: React.FC = () => {
         setIsEditingOrganization(false);
         
         // Update user context with new organization name
-        if (data.organization.name && user && setUser) {
+        if (data.organization && user && setUser) {
           setUser({
             ...user,
-            organizationName: data.organization.name
+            organizationName: data.organization.name || data.organization.organizationName
           });
         }
+        
+        // Immediately sync form state with updated backend data
+        setOrganizationData({
+          organizationName: data.organization?.name || data.organization?.organizationName || '',
+          email: data.organization?.email || '',
+          phone: data.organization?.phone || '',
+          address: data.organization?.address || ''
+        });
         
         // Clear success message after 3 seconds
         setTimeout(() => setOrgUpdateStatus(null), 3000);
@@ -290,7 +328,7 @@ const Settings: React.FC = () => {
                 }`}
               />
             </div>
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input
                 type="tel"
@@ -303,7 +341,7 @@ const Settings: React.FC = () => {
                   isEditing ? 'bg-white' : 'bg-gray-50'
                 }`}
               />
-            </div>
+            </div> */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
               <input

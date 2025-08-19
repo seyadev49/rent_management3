@@ -376,6 +376,26 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const getOrganization = async (req, res) => {
+  try {
+    const [organizations] = await db.execute(
+      'SELECT id, name, email, phone, address FROM organizations WHERE id = ?',
+      [req.user.organization_id]
+    );
+
+    if (organizations.length === 0) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    res.json({
+      organization: organizations[0]
+    });
+  } catch (error) {
+    console.error('Get organization error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 const updateOrganization = async (req, res) => {
   try {
     const { organizationName, email, phone, address } = req.body;
@@ -439,5 +459,6 @@ module.exports = {
   resetPassword,
   validateResetToken,
   updateProfile,
+  getOrganization,
   updateOrganization
 };
