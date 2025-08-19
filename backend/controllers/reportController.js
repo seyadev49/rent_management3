@@ -1,4 +1,5 @@
 const db = require('../db/connection');
+const puppeteer = require('puppeteer');
 
 // NEW: A dedicated function to fetch report data without sending a response.
 // This resolves the "headers already sent" error by separating data fetching from the response.
@@ -263,6 +264,249 @@ const generateMaintenanceReport = async (organizationId, dateFilter, dateParams,
   };
 };
 
+// PDF Generation Function
+const generatePDFReport = async (type, reportData) => {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  const page = await browser.newPage();
+  
+  let htmlContent = '';
+  
+  switch (type) {
+    case 'financial':
+      htmlContent = generateFinancialHTML(reportData.financial);
+      break;
+    case 'tenant':
+      htmlContent = generateTenantHTML(reportData.tenant);
+      break;
+    case 'property':
+      htmlContent = generatePropertyHTML(reportData.property);
+      break;
+    case 'maintenance':
+      htmlContent = generateMaintenanceHTML(reportData.maintenance);
+      break;
+    default:
+      htmlContent = '<h1>Invalid Report Type</h1>';
+  }
+  
+  const fullHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>${type.charAt(0).toUpperCase() + type.slice(1)} Report</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e5e5e5; padding-bottom: 20px; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e5e5e5; }
+        .card-title { font-size: 14px; color: #666; margin-bottom: 5px; }
+        .card-value { font-size: 24px; font-weight: bold; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #555; }
+        .section-title { font-size: 18px; font-weight: bold; margin: 30px 0 15px 0; color: #333; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${type.charAt(0).toUpperCase() + type.slice(1)} Report</h1>
+        <p>Generated on ${new Date().toLocaleDateString()}</p>
+      </div>
+      ${htmlContent}
+    </body>
+    </html>
+  `;
+  
+  await page.setContent(fullHTML);
+  const pdfBuffer = await page.pdf({
+    format: 'A4',
+    printBackground: true,
+    margin: {
+      top: '20px',
+      right: '20px',
+      bottom: '20px',
+      left: '20px'
+    }
+  });
+  
+  await browser.close();
+  return pdfBuffer;
+};
+
+const generateFinancialHTML = (data) => {
+  return `
+    <div class="summary-cards">
+      <div class="card">
+        <div class="card-title">Total Collected</div>
+        <div class="card-value">$${data.totalCollected?.toLocaleString() || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Outstanding</div>
+        <div class="card-value">$${data.outstanding?.toLocaleString() || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Security Deposits</div>
+        <div class="card-value">$${data.securityDeposits?.toLocaleString() || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Expenses</div>
+        <div class="card-value">$${data.expenses?.toLocaleString() || 0}</div>
+      </div>
+    </div>
+    
+    <div class="section-title">Revenue by Property</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Monthly Revenue</th>
+          <th>Occupied Units</th>
+          <th>Occupancy Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.revenue?.map(property => `
+          <tr>
+            <td>${property.name}</td>
+            <td>$${property.monthlyRevenue?.toLocaleString()}</td>
+            <td>${property.occupiedUnits}/${property.total_units}</td>
+            <td>${Math.round(property.occupancyRate)}%</td>
+          </tr>
+        `).join('') || '<tr><td colspan="4">No data available</td></tr>'}
+      </tbody>
+    </table>
+  `;
+};
+
+const generateTenantHTML = (data) => {
+  return `
+    <div class="summary-cards">
+      <div class="card">
+        <div class="card-title">Current Tenants</div>
+        <div class="card-value">${data.currentTenants || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Past Tenants</div>
+        <div class="card-value">${data.pastTenants || 0}</div>
+      </div>
+    </div>
+    
+    <div class="section-title">Tenant Information</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Tenant Name</th>
+          <th>Property</th>
+          <th>Lease Start</th>
+          <th>Lease End</th>
+          <th>Outstanding Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.tenantList?.map(tenant => `
+          <tr>
+            <td>${tenant.full_name}</td>
+            <td>${tenant.property_name} - Unit ${tenant.unit_number}</td>
+            <td>${new Date(tenant.contract_start_date).toLocaleDateString()}</td>
+            <td>${new Date(tenant.contract_end_date).toLocaleDateString()}</td>
+            <td>$${tenant.outstanding_balance?.toLocaleString() || 0}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="5">No data available</td></tr>'}
+      </tbody>
+    </table>
+  `;
+};
+
+const generatePropertyHTML = (data) => {
+  return `
+    <div class="summary-cards">
+      <div class="card">
+        <div class="card-title">Occupancy Rate</div>
+        <div class="card-value">${data.occupancyRate || 0}%</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Vacant Units</div>
+        <div class="card-value">${data.vacantUnits?.length || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Expiring Leases</div>
+        <div class="card-value">${data.expiringLeases?.length || 0}</div>
+      </div>
+    </div>
+    
+    <div class="section-title">Property Income Analysis</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Total Units</th>
+          <th>Occupied</th>
+          <th>Monthly Income</th>
+          <th>Potential Income</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.propertyIncome?.map(property => `
+          <tr>
+            <td>${property.name}</td>
+            <td>${property.total_units}</td>
+            <td>${property.occupiedUnits}</td>
+            <td>$${property.monthlyIncome?.toLocaleString()}</td>
+            <td>$${property.potentialIncome?.toLocaleString()}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="5">No data available</td></tr>'}
+      </tbody>
+    </table>
+  `;
+};
+
+const generateMaintenanceHTML = (data) => {
+  return `
+    <div class="summary-cards">
+      <div class="card">
+        <div class="card-title">Open Requests</div>
+        <div class="card-value">${data.openRequests || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Completed</div>
+        <div class="card-value">${data.completedRequests || 0}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Avg Resolution Time</div>
+        <div class="card-value">${data.averageResolutionTime || 0} days</div>
+      </div>
+    </div>
+    
+    <div class="section-title">Maintenance Requests by Property</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Open</th>
+          <th>In Progress</th>
+          <th>Completed</th>
+          <th>Total Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.requestsByProperty?.map(property => `
+          <tr>
+            <td>${property.name}</td>
+            <td>${property.openRequests}</td>
+            <td>${property.inProgressRequests}</td>
+            <td>${property.completedRequests}</td>
+            <td>$${property.totalCost?.toLocaleString() || 0}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="5">No data available</td></tr>'}
+      </tbody>
+    </table>
+  `;
+};
+
 // ---------------- EXPORT ----------------
 const exportReport = async (req, res) => {
   try {
@@ -281,12 +525,11 @@ const exportReport = async (req, res) => {
     // This prevents the "headers already sent" error.
     const reportData = await getReportData(type, organizationId, dateFilter, dateParams, propertyId, tenantId);
 
-    // Placeholder for actual file generation
     if (format === 'pdf') {
+      const pdfBuffer = await generatePDFReport(type, reportData);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${type}-report.pdf"`);
-      // In a real app, you would use a library like PDFKit or Puppeteer here
-      res.send(`PDF generation for ${type} report would be implemented here.`);
+      res.send(pdfBuffer);
     } else if (format === 'excel') {
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${type}-report.xlsx"`);
