@@ -271,11 +271,173 @@ const validateResetToken = async (req, res) => {
   }
 };
 
+
+
+const updateProfile = async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      currentPassword,
+      newPassword
+    } = req.body;
+
+    // Check if email is already taken by another user
+    if (email) {
+      const [existingUsers] = await db.execute(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [email, req.user.id]
+      );
+
+      if (existingUsers.length > 0) {
+        return res.status(400).json({ message: 'Email is already in use' });
+      }
+    }
+
+    let updateFields = [];
+    let updateValues = [];
+
+    // Build update query dynamically
+    if (fullName) {
+      updateFields.push('full_name = ?');
+      updateValues.push(fullName);
+    }
+    if (email) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+    if (phone !== undefined) {
+      updateFields.push('phone = ?');
+      updateValues.push(phone || null);
+    }
+
+    // Handle password update
+    if (newPassword && currentPassword) {
+      // Verify current password
+      const [users] = await db.execute(
+        'SELECT password FROM users WHERE id = ?',
+        [req.user.id]
+      );
+
+      if (users.length === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, users[0].password);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      updateFields.push('password = ?');
+      updateValues.push(hashedPassword);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    // Update user
+    updateValues.push(req.user.id);
+    await db.execute(
+      `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+
+    // Get updated user info
+    const [updatedUsers] = await db.execute(
+      `SELECT u.id, u.email, u.full_name, u.phone, u.role, u.organization_id,
+              o.name as organization_name, o.subscription_status, o.trial_end_date
+       FROM users u 
+       JOIN organizations o ON u.organization_id = o.id 
+       WHERE u.id = ?`,
+      [req.user.id]
+    );
+
+    const user = updatedUsers[0];
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        phone: user.phone,
+        role: user.role,
+        organizationId: user.organization_id,
+        organizationName: user.organization_name,
+        subscriptionStatus: user.subscription_status,
+        trialEndDate: user.trial_end_date
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateOrganization = async (req, res) => {
+  try {
+    const { organizationName, email, phone, address } = req.body;
+console.log(req.body)
+    let updateFields = [];
+    let updateValues = [];
+
+    // Build update query dynamically
+    if (organizationName) {
+      updateFields.push('name = ?');
+      updateValues.push(organizationName);
+    }
+    if (email) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+    if (phone !== undefined) {
+      updateFields.push('phone = ?');
+      updateValues.push(phone || null);
+    }
+    if (address !== undefined) {
+      updateFields.push('address = ?');
+      updateValues.push(address || null);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: 'No fields to update' });
+    }
+
+    // Update organization
+    updateValues.push(req.user.organization_id);
+    await db.execute(
+      `UPDATE organizations SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+
+    // Get updated organization info
+    const [organizations] = await db.execute(
+      'SELECT id, name, email, phone, address FROM organizations WHERE id = ?',
+      [req.user.organization_id]
+    );
+
+    res.json({
+      message: 'Organization updated successfully',
+      organization: organizations[0]
+    });
+  } catch (error) {
+    console.error('Update organization error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+
+
 module.exports = {
   register,
   login,
   getProfile,
   forgotPassword,
   resetPassword,
-  validateResetToken
+  validateResetToken,
+  updateProfile,
+  updateOrganization
 };

@@ -24,6 +24,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   isSubscriptionOverdue: boolean;
+  setUser: (user: User | null) => void;
 }
 
 interface RegisterData {
@@ -210,6 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     loading,
     isSubscriptionOverdue,
+    setUser,
   };
 
   return (

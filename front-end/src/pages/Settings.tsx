@@ -14,26 +14,52 @@ interface SubscriptionDetails {
 }
 
 const Settings: React.FC = () => {
-  const { user, token } = useAuth();
+  const { user, token, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingOrganization, setIsEditingOrganization] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
   const [profileData, setProfileData] = useState({
     fullName: user?.fullName || '',
     email: user?.email || '',
-    phone: '',
+    phone: user?.phone || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [organizationData, setOrganizationData] = useState({
+    organizationName: user?.organizationName || '',
+    email: '',
+    phone: '',
+    address: ''
+  });
   const [updateStatus, setUpdateStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [orgUpdateStatus, setOrgUpdateStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
   const [loading, setLoading] = useState(false);
+  const [orgLoading, setOrgLoading] = useState(false);
 
   useEffect(() => {
     fetchSubscriptionDetails();
-  }, []);
+  }, [token]);
+
+  useEffect(() => {
+    if (user) {
+      setProfileData(prev => ({
+        ...prev,
+        fullName: user.fullName || '',
+        email: user.email || '',
+        phone: user.phone || ''
+      }));
+      setOrganizationData(prev => ({
+        ...prev,
+        organizationName: user.organizationName || ''
+      }));
+    }
+  }, [user]);
 
   const fetchSubscriptionDetails = async () => {
+    if (!token) return;
+    
     try {
       const response = await fetch('http://localhost:5000/api/subscription/status', {
         headers: {
@@ -44,15 +70,25 @@ const Settings: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setSubscriptionDetails(data.subscription);
+      } else {
+        console.log('Subscription details not available');
       }
     } catch (error) {
-      console.error('Failed to fetch subscription details:', error);
+      console.log('Backend server not running or subscription service unavailable');
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleOrganizationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setOrganizationData(prev => ({
       ...prev,
       [name]: value
     }));
@@ -92,6 +128,7 @@ const Settings: React.FC = () => {
       });
 
       if (response.ok) {
+        const data = await response.json();
         setUpdateStatus({ type: 'success', message: 'Profile updated successfully!' });
         setIsEditing(false);
         setProfileData(prev => ({
@@ -100,8 +137,14 @@ const Settings: React.FC = () => {
           newPassword: '',
           confirmPassword: ''
         }));
-        // Refresh page to update user context
-        setTimeout(() => window.location.reload(), 1500);
+        
+        // Update user context with new data
+        if (setUser && data.user) {
+          setUser(data.user);
+        }
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setUpdateStatus(null), 3000);
       } else {
         const data = await response.json();
         setUpdateStatus({ type: 'error', message: data.message || 'Update failed' });
@@ -111,6 +154,48 @@ const Settings: React.FC = () => {
       setUpdateStatus({ type: 'error', message: 'Update failed. Please try again.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOrganizationUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOrgLoading(true);
+    setOrgUpdateStatus(null);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/update-organization', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(organizationData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setOrgUpdateStatus({ type: 'success', message: 'Organization updated successfully!' });
+        setIsEditingOrganization(false);
+        
+        // Update user context with new organization name
+        if (data.organization.name && user && setUser) {
+          setUser({
+            ...user,
+            organizationName: data.organization.name
+          });
+        }
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setOrgUpdateStatus(null), 3000);
+      } else {
+        const data = await response.json();
+        setOrgUpdateStatus({ type: 'error', message: data.message || 'Update failed' });
+      }
+    } catch (error) {
+      console.error('Organization update error:', error);
+      setOrgUpdateStatus({ type: 'error', message: 'Update failed. Please try again.' });
+    } finally {
+      setOrgLoading(false);
     }
   };
 
@@ -369,21 +454,99 @@ const Settings: React.FC = () => {
 
         {/* Organization Settings */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center mb-4">
-            <Building2 className="h-5 w-5 text-gray-600 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-900">Organization</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Building2 className="h-5 w-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">Organization</h2>
+            </div>
+            <button
+              onClick={() => setIsEditingOrganization(!isEditingOrganization)}
+              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              {isEditingOrganization ? <X className="h-4 w-4 mr-1" /> : <Edit2 className="h-4 w-4 mr-1" />}
+              {isEditingOrganization ? 'Cancel' : 'Edit'}
+            </button>
           </div>
-          <div className="space-y-4">
+
+          {/* Organization Update Status Message */}
+          {orgUpdateStatus && (
+            <div className={`mb-4 p-3 rounded-lg ${
+              orgUpdateStatus.type === 'success' 
+                ? 'bg-green-50 border border-green-200 text-green-800' 
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              {orgUpdateStatus.message}
+            </div>
+          )}
+
+          <form onSubmit={handleOrganizationUpdate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
               <input
                 type="text"
-                value={user?.organizationName || ''}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                name="organizationName"
+                value={organizationData.organizationName}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
               />
             </div>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Email</label>
+              <input
+                type="email"
+                name="email"
+                value={organizationData.email}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                placeholder="Organization email"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                value={organizationData.phone}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                placeholder="Organization phone"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <input
+                type="text"
+                name="address"
+                value={organizationData.address}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                placeholder="Organization address"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+
+            {isEditingOrganization && (
+              <button
+                type="submit"
+                disabled={orgLoading}
+                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {orgLoading ? 'Updating...' : 'Save Changes'}
+              </button>
+            )}
+          </form>
         </div>
 
         {/* Notification Settings */}
