@@ -9,55 +9,87 @@ import {
   BarChart3,
   PieChart,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Activity
 } from 'lucide-react';
 
-interface AnalyticsData {
-  revenue: {
-    current_month: number;
-    previous_month: number;
-    growth_rate: number;
-  };
-  organizations: {
-    total: number;
-    new_this_month: number;
-    churn_this_month: number;
-  };
-  subscriptions: {
-    active: number;
-    trial: number;
-    cancelled: number;
-  };
-  usage_stats: {
-    total_properties: number;
-    total_tenants: number;
-    avg_properties_per_org: number;
-  };
-  monthly_revenue: Array<{ month: string; amount: number }>;
-  plan_distribution: Array<{ plan: string; count: number }>;
+interface PlatformOverview {
+  totalOrganizations: number;
+  activeOrganizations: number;
+  trialOrganizations: number;
+  totalUsers: number;
+  totalProperties: number;
+  totalTenants: number;
+  totalTransactions: number;
+  totalTransactionAmount: number;
+  monthlyRecurringRevenue: number;
+  growthRate: number;
+}
+
+interface UserEngagement {
+  dailyActiveUsers: Array<{ date: string; active_users: number }>;
+  mostActiveOrganizations: Array<{ name: string; id: number; activity_count: number; last_activity: string }>;
+  featureUsage: Array<{ action: string; usage_count: number }>;
+}
+
+interface RevenueAnalytics {
+  dailyRevenue: Array<{ date: string; revenue: number; transactions: number }>;
+  revenueByPlan: Array<{ plan_id: string; total_revenue: number; subscribers: number; avg_revenue: number }>;
+  averageCustomerLifetimeValue: number;
+}
+
+interface GeographicData {
+  geographicDistribution: Array<{ region: string; organization_count: number }>;
 }
 
 const Analytics: React.FC = () => {
   const { token } = useAuth();
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [overview, setOverview] = useState<PlatformOverview | null>(null);
+  const [engagement, setEngagement] = useState<UserEngagement | null>(null);
+  const [revenue, setRevenue] = useState<RevenueAnalytics | null>(null);
+  const [geographic, setGeographic] = useState<GeographicData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('last_30_days');
+  const [timeRange, setTimeRange] = useState('30');
 
   useEffect(() => {
-    fetchAnalytics();
+    fetchAllAnalytics();
   }, [token, timeRange]);
 
-  const fetchAnalytics = async () => {
+  const fetchAllAnalytics = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/analytics?range=${timeRange}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const [overviewRes, engagementRes, revenueRes, geoRes] = await Promise.all([
+        fetch('http://localhost:5000/api/admin/analytics/overview', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('http://localhost:5000/api/admin/analytics/engagement', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`http://localhost:5000/api/admin/analytics/revenue?period=${timeRange}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('http://localhost:5000/api/admin/analytics/geographic', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
+      if (overviewRes.ok) {
+        const data = await overviewRes.json();
+        setOverview(data.overview);
+      }
+
+      if (engagementRes.ok) {
+        const data = await engagementRes.json();
+        setEngagement(data);
+      }
+
+      if (revenueRes.ok) {
+        const data = await revenueRes.json();
+        setRevenue(data);
+      }
+
+      if (geoRes.ok) {
+        const data = await geoRes.json();
+        setGeographic(data);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -74,16 +106,6 @@ const Analytics: React.FC = () => {
     );
   }
 
-  if (!analytics) {
-    return (
-      <div className="text-center py-12">
-        <BarChart3 className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No data available</h3>
-        <p className="mt-1 text-sm text-gray-500">Analytics data could not be loaded.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -96,162 +118,200 @@ const Analytics: React.FC = () => {
           onChange={(e) => setTimeRange(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-          <option value="last_7_days">Last 7 days</option>
-          <option value="last_30_days">Last 30 days</option>
-          <option value="last_90_days">Last 90 days</option>
-          <option value="last_year">Last year</option>
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+          <option value="365">Last year</option>
         </select>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${analytics.revenue.current_month}</p>
+      {overview && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">${overview.monthlyRecurringRevenue}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
             </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <DollarSign className="h-6 w-6 text-green-600" />
+            <div className="mt-4 flex items-center">
+              {overview.growthRate >= 0 ? (
+                <ArrowUp className="h-4 w-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDown className="h-4 w-4 text-red-500 mr-1" />
+              )}
+              <span className={`text-sm font-medium ${
+                overview.growthRate >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {Math.abs(overview.growthRate)}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">growth rate</span>
             </div>
           </div>
-          <div className="mt-4 flex items-center">
-            {analytics.revenue.growth_rate >= 0 ? (
-              <ArrowUp className="h-4 w-4 text-green-500 mr-1" />
-            ) : (
-              <ArrowDown className="h-4 w-4 text-red-500 mr-1" />
-            )}
-            <span className={`text-sm font-medium ${
-              analytics.revenue.growth_rate >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {Math.abs(analytics.revenue.growth_rate)}%
-            </span>
-            <span className="text-sm text-gray-500 ml-1">vs last month</span>
+
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Organizations</p>
+                <p className="text-2xl font-bold text-gray-900">{overview.totalOrganizations}</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-sm text-gray-500">
+                {overview.activeOrganizations} active, {overview.trialOrganizations} trial
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Properties</p>
+                <p className="text-2xl font-bold text-gray-900">{overview.totalProperties}</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <TrendingUp className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-sm text-gray-500">
+                {overview.totalTenants} total tenants
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Transactions</p>
+                <p className="text-2xl font-bold text-gray-900">{overview.totalTransactions}</p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <BarChart3 className="h-6 w-6 text-yellow-600" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-sm text-gray-500">
+                ${overview.totalTransactionAmount} total value
+              </span>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Organizations</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.organizations.total}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-sm text-gray-500">
-              +{analytics.organizations.new_this_month} new this month
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Subscriptions</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.subscriptions.active}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <TrendingUp className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-sm text-gray-500">
-              {analytics.subscriptions.trial} in trial
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Properties</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.usage_stats.total_properties}</p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <BarChart3 className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <span className="text-sm text-gray-500">
-              Avg {analytics.usage_stats.avg_properties_per_org} per organization
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Revenue Chart */}
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Revenue Trend</h3>
-          <div className="h-64 flex items-end justify-between space-x-2">
-            {analytics.monthly_revenue.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="w-full bg-blue-500 rounded-t"
-                  style={{ 
-                    height: `${(item.amount / Math.max(...analytics.monthly_revenue.map(i => i.amount))) * 200}px`,
-                    minHeight: '10px'
-                  }}
-                ></div>
-                <div className="text-xs text-gray-500 mt-2 transform -rotate-45">
-                  {item.month}
+      {/* Revenue Analytics */}
+      {revenue && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Revenue</h3>
+            <div className="space-y-3">
+              {revenue.dailyRevenue.slice(0, 10).map((item, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">
+                    {new Date(item.date).toLocaleDateString()}
+                  </span>
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-900">${item.revenue}</div>
+                    <div className="text-xs text-gray-500">{item.transactions} transactions</div>
+                  </div>
                 </div>
-                <div className="text-xs font-medium text-gray-900">
-                  ${item.amount}
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Plan</h3>
+            <div className="space-y-4">
+              {revenue.revenueByPlan.map((plan, index) => {
+                const colors = ['bg-yellow-500', 'bg-purple-500', 'bg-indigo-500'];
+                return (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-3 h-3 ${colors[index % colors.length]} rounded mr-3`}></div>
+                      <span className="text-sm font-medium text-gray-900 capitalize">{plan.plan_id}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-900">${plan.total_revenue}</div>
+                      <div className="text-xs text-gray-500">{plan.subscribers} subscribers</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Engagement */}
+      {engagement && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Most Active Organizations</h3>
+            <div className="space-y-3">
+              {engagement.mostActiveOrganizations.slice(0, 5).map((org, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{org.name}</div>
+                    <div className="text-xs text-gray-500">
+                      Last activity: {new Date(org.last_activity).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-blue-600">
+                    {org.activity_count} actions
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Usage</h3>
+            <div className="space-y-3">
+              {engagement.featureUsage.slice(0, 5).map((feature, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-900 capitalize">
+                    {feature.action.replace(/_/g, ' ')}
+                  </span>
+                  <span className="text-sm text-gray-600">{feature.usage_count} times</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Geographic Distribution */}
+      {geographic && (
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {geographic.geographicDistribution.slice(0, 6).map((region, index) => (
+              <div key={index} className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{region.organization_count}</div>
+                <div className="text-sm text-gray-600">{region.region}</div>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Plan Distribution */}
+      {/* Customer Lifetime Value */}
+      {revenue && (
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Plan Distribution</h3>
-          <div className="space-y-4">
-            {analytics.plan_distribution.map((plan, index) => {
-              const total = analytics.plan_distribution.reduce((sum, p) => sum + p.count, 0);
-              const percentage = (plan.count / total) * 100;
-              const colors = ['bg-yellow-500', 'bg-purple-500', 'bg-indigo-500'];
-              
-              return (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className={`w-3 h-3 ${colors[index]} rounded mr-3`}></div>
-                    <span className="text-sm font-medium text-gray-900 capitalize">{plan.plan}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">{plan.count}</div>
-                    <div className="text-xs text-gray-500">{percentage.toFixed(1)}%</div>
-                  </div>
-                </div>
-              );
-            })}
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Metrics</h3>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600">${revenue.averageCustomerLifetimeValue}</div>
+            <div className="text-sm text-gray-600">Average Customer Lifetime Value</div>
           </div>
         </div>
-      </div>
-
-      {/* Usage Statistics */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Usage Statistics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{analytics.usage_stats.total_properties}</div>
-            <div className="text-sm text-gray-600">Total Properties Managed</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{analytics.usage_stats.total_tenants}</div>
-            <div className="text-sm text-gray-600">Total Tenants</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">{analytics.usage_stats.avg_properties_per_org}</div>
-            <div className="text-sm text-gray-600">Avg Properties per Organization</div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

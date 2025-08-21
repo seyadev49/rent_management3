@@ -1,44 +1,66 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Organizations from './pages/Organizations';
 import Subscriptions from './pages/Subscriptions';
-// import Payments from './pages/Payments';
 import Analytics from './pages/Analytics';
-// import Settings from './pages/Settings';
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
-import './App.css';
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <div className="App">
+          <div className="min-h-screen bg-gray-50">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route
-                path="/*"
+                path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Routes>
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/organizations" element={<Organizations />} />
-                        <Route path="/subscriptions" element={<Subscriptions />} />
-                        {/* <Route path="/payments" element={<Payments />} /> */}
-                        <Route path="/analytics" element={<Analytics />} />
-                        {/* <Route path="/settings" element={<Settings />} /> */}
-                      </Routes>
+                      <Dashboard />
                     </Layout>
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/organizations"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Organizations />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/subscriptions"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Subscriptions />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Analytics />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
         </Router>

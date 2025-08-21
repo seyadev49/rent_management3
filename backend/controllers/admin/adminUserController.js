@@ -33,26 +33,25 @@ const getAllOrganizations = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 // Get detailed organization info with users
 const getOrganizationDetails = async (req, res) => {
   try {
     const { orgId } = req.params;
 
-    // Get organization info
+    // Get organization info + aggregates
     const [orgData] = await db.execute(`
       SELECT 
         o.*,
-        COUNT(DISTINCT u.id) as total_users,
-        COUNT(DISTINCT p.id) as total_properties,
-        COUNT(DISTINCT t.id) as total_tenants,
-        COUNT(DISTINCT c.id) as total_contracts,
-        COALESCE(SUM(py.amount), 0) as total_payments_received
+        COUNT(DISTINCT u.id) AS total_users,
+        COUNT(DISTINCT p.id) AS total_properties,
+        COUNT(DISTINCT t.id) AS total_tenants,
+        COUNT(DISTINCT c.id) AS total_contracts,
+        COALESCE(SUM(py.amount), 0) AS total_payments_received
       FROM organizations o
       LEFT JOIN users u ON o.id = u.organization_id
       LEFT JOIN properties p ON o.id = p.organization_id
       LEFT JOIN tenants t ON o.id = t.organization_id
-      LEFT JOIN contracts c ON o.id = c.organization_id
+      LEFT JOIN rental_contracts c ON o.id = c.organization_id
       LEFT JOIN payments py ON o.id = py.organization_id
       WHERE o.id = ?
       GROUP BY o.id
@@ -65,7 +64,7 @@ const getOrganizationDetails = async (req, res) => {
     // Get organization users
     const [users] = await db.execute(`
       SELECT 
-        id, name, email, role, last_login, created_at, is_active
+        id, full_name, email, role, last_login, created_at, is_active
       FROM users 
       WHERE organization_id = ?
       ORDER BY created_at DESC
@@ -74,7 +73,7 @@ const getOrganizationDetails = async (req, res) => {
     // Get recent activity logs
     const [activityLogs] = await db.execute(`
       SELECT 
-        al.action, al.details, al.created_at, u.name as user_name
+        al.action, al.details, al.created_at, u.full_name AS user_name
       FROM activity_logs al
       JOIN users u ON al.user_id = u.id
       WHERE al.organization_id = ?

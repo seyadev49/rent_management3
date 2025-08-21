@@ -3,33 +3,53 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Building, 
-  Plus, 
   Search,
-  Filter,
   Users,
-  CreditCard,
-  Calendar,
-  MoreVertical,
   Eye,
-  Edit,
-  Trash2,
-  AlertCircle
+  MoreVertical,
+  AlertCircle,
+  UserX,
+  UserCheck,
+  Key,
+  LogIn
 } from 'lucide-react';
 
 interface Organization {
   id: number;
-  name: string;
+  organization_name: string;
   email: string;
   phone: string;
   address: string;
-  subscription_status: 'active' | 'inactive' | 'trial' | 'overdue';
-  plan_type: 'basic' | 'professional' | 'enterprise';
   created_at: string;
-  last_payment_date?: string;
-  next_billing_date?: string;
+  subscription_plan: string;
+  subscription_status: string;
+  trial_end_date?: string;
+  total_users: number;
   total_properties: number;
   total_tenants: number;
-  monthly_revenue: number;
+  last_activity?: string;
+}
+
+interface OrganizationDetails {
+  organization: Organization & {
+    total_contracts: number;
+    total_payments_received: number;
+  };
+  users: Array<{
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+    last_login?: string;
+    created_at: string;
+    is_active: boolean;
+  }>;
+  activityLogs: Array<{
+    action: string;
+    details: string;
+    created_at: string;
+    user_name: string;
+  }>;
 }
 
 const Organizations: React.FC = () => {
@@ -38,20 +58,17 @@ const Organizations: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<OrganizationDetails | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrganizations();
-  }, [token, filterStatus]);
+  }, [token]);
 
   const fetchOrganizations = async () => {
     try {
-      const queryParams = new URLSearchParams();
-      if (filterStatus) queryParams.append('status', filterStatus);
-      
-      const response = await fetch(`http://localhost:5000/api/admin/organizations?${queryParams}`, {
+      const response = await fetch('http://localhost:5000/api/admin/users/organizations', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -68,17 +85,111 @@ const Organizations: React.FC = () => {
     }
   };
 
+  const fetchOrganizationDetails = async (orgId: number) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/users/organizations/${orgId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedOrg(data);
+        setShowDetailsModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching organization details:', error);
+    }
+  };
+
+  const toggleOrganizationStatus = async (orgId: number, action: 'suspend' | 'reactivate', reason?: string) => {
+    setActionLoading(`${action}-${orgId}`);
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/users/organizations/${orgId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action, reason }),
+      });
+
+      if (response.ok) {
+        await fetchOrganizations();
+        if (selectedOrg && selectedOrg.organization.id === orgId) {
+          await fetchOrganizationDetails(orgId);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling organization status:', error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const resetUserPassword = async (userId: number) => {
+    const newPassword = prompt('Enter new password for user:');
+    if (!newPassword) return;
+
+    setActionLoading(`password-${userId}`);
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/users/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
+
+      if (response.ok) {
+        alert('Password reset successfully');
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const impersonateUser = async (userId: number) => {
+    setActionLoading(`impersonate-${userId}`);
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/users/users/${userId}/impersonate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Open user dashboard in new tab with impersonation token
+        const newWindow = window.open(`http://localhost:5173/dashboard?impersonate=${data.impersonationToken}`, '_blank');
+        if (newWindow) {
+          alert(`Impersonating ${data.userDetails.name} (${data.userDetails.email})`);
+        }
+      }
+    } catch (error) {
+      console.error('Error impersonating user:', error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const filteredOrganizations = organizations.filter(org =>
-    org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    org.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (org.organization_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     org.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (filterStatus === '' || org.subscription_status === filterStatus)
   );
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-100 text-green-800';
       case 'trial': return 'bg-blue-100 text-blue-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'suspended': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -90,11 +201,6 @@ const Organizations: React.FC = () => {
       case 'enterprise': return 'bg-indigo-100 text-indigo-800';
       default: return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  const handleViewDetails = (org: Organization) => {
-    setSelectedOrg(org);
-    setShowDetailsModal(true);
   };
 
   if (loading) {
@@ -112,13 +218,6 @@ const Organizations: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Organizations</h1>
           <p className="text-gray-600">Manage client organizations and their subscriptions</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Organization
-        </button>
       </div>
 
       {/* Filters and Search */}
@@ -142,8 +241,8 @@ const Organizations: React.FC = () => {
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="trial">Trial</option>
-            <option value="overdue">Overdue</option>
-            <option value="inactive">Inactive</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="suspended">Suspended</option>
           </select>
         </div>
       </div>
@@ -156,14 +255,9 @@ const Organizations: React.FC = () => {
               <div className="flex items-center">
                 <Building className="h-8 w-8 text-blue-600 mr-3" />
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{org.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{org.organization_name}</h3>
                   <p className="text-sm text-gray-600">{org.email}</p>
                 </div>
-              </div>
-              <div className="relative">
-                <button className="p-1 hover:bg-gray-100 rounded">
-                  <MoreVertical className="h-4 w-4 text-gray-400" />
-                </button>
               </div>
             </div>
 
@@ -177,9 +271,14 @@ const Organizations: React.FC = () => {
               
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Plan:</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPlanColor(org.plan_type)}`}>
-                  {org.plan_type}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPlanColor(org.subscription_plan)}`}>
+                  {org.subscription_plan}
                 </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Users:</span>
+                <span className="text-sm font-medium text-gray-900">{org.total_users}</span>
               </div>
 
               <div className="flex justify-between items-center">
@@ -191,16 +290,11 @@ const Organizations: React.FC = () => {
                 <span className="text-sm text-gray-600">Tenants:</span>
                 <span className="text-sm font-medium text-gray-900">{org.total_tenants}</span>
               </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Monthly Revenue:</span>
-                <span className="text-sm font-medium text-green-600">${org.monthly_revenue}</span>
-              </div>
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-200 flex gap-2">
               <button
-                onClick={() => handleViewDetails(org)}
+                onClick={() => fetchOrganizationDetails(org.id)}
                 className="flex-1 flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
               >
                 <Eye className="h-4 w-4 mr-1" />
@@ -216,7 +310,7 @@ const Organizations: React.FC = () => {
           <Building className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No organizations found</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {searchTerm ? 'Try adjusting your search criteria.' : 'Get started by adding your first organization.'}
+            {searchTerm ? 'Try adjusting your search criteria.' : 'No organizations to display.'}
           </p>
         </div>
       )}
@@ -224,7 +318,7 @@ const Organizations: React.FC = () => {
       {/* Organization Details Modal */}
       {showDetailsModal && selectedOrg && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Organization Details</h2>
@@ -237,47 +331,149 @@ const Organizations: React.FC = () => {
               </div>
 
               <div className="space-y-6">
+                {/* Organization Info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                    <p className="text-sm text-gray-900">{selectedOrg.name}</p>
+                    <p className="text-sm text-gray-900">{selectedOrg.organization.organization_name}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <p className="text-sm text-gray-900">{selectedOrg.email}</p>
+                    <p className="text-sm text-gray-900">{selectedOrg.organization.email}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <p className="text-sm text-gray-900">{selectedOrg.phone}</p>
+                    <p className="text-sm text-gray-900">{selectedOrg.organization.phone}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                    <p className="text-sm text-gray-900">{selectedOrg.address}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
-                    <p className="text-sm text-gray-900">{new Date(selectedOrg.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Payment</label>
-                    <p className="text-sm text-gray-900">
-                      {selectedOrg.last_payment_date ? new Date(selectedOrg.last_payment_date).toLocaleDateString() : 'N/A'}
-                    </p>
+                    <p className="text-sm text-gray-900">{selectedOrg.organization.address}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                {/* Quick Actions */}
+                <div className="flex gap-2">
+                  {selectedOrg.organization.subscription_status === 'active' ? (
+                    <button
+                      onClick={() => toggleOrganizationStatus(selectedOrg.organization.id, 'suspend', 'Admin suspended')}
+                      disabled={actionLoading === `suspend-${selectedOrg.organization.id}`}
+                      className="flex items-center px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors duration-200 disabled:opacity-50"
+                    >
+                      <UserX className="h-4 w-4 mr-1" />
+                      Suspend
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => toggleOrganizationStatus(selectedOrg.organization.id, 'reactivate')}
+                      disabled={actionLoading === `reactivate-${selectedOrg.organization.id}`}
+                      className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50"
+                    >
+                      <UserCheck className="h-4 w-4 mr-1" />
+                      Reactivate
+                    </button>
+                  )}
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-5 gap-4 pt-4 border-t border-gray-200">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{selectedOrg.total_properties}</div>
+                    <div className="text-2xl font-bold text-blue-600">{selectedOrg.organization.total_users}</div>
+                    <div className="text-sm text-gray-600">Users</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{selectedOrg.organization.total_properties}</div>
                     <div className="text-sm text-gray-600">Properties</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{selectedOrg.total_tenants}</div>
+                    <div className="text-2xl font-bold text-purple-600">{selectedOrg.organization.total_tenants}</div>
                     <div className="text-sm text-gray-600">Tenants</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">${selectedOrg.monthly_revenue}</div>
-                    <div className="text-sm text-gray-600">Monthly Revenue</div>
+                    <div className="text-2xl font-bold text-yellow-600">{selectedOrg.organization.total_contracts}</div>
+                    <div className="text-sm text-gray-600">Contracts</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">${selectedOrg.organization.total_payments_received}</div>
+                    <div className="text-sm text-gray-600">Revenue</div>
+                  </div>
+                </div>
+
+                {/* Users */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Users</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            User
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Role
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Last Login
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {selectedOrg.users.map((user) => (
+                          <tr key={user.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                                <div className="text-sm text-gray-500">{user.email}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                {user.role}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                              <button
+                                onClick={() => resetUserPassword(user.id)}
+                                disabled={actionLoading === `password-${user.id}`}
+                                className="text-yellow-600 hover:text-yellow-900 disabled:opacity-50"
+                              >
+                                <Key className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => impersonateUser(user.id)}
+                                disabled={actionLoading === `impersonate-${user.id}`}
+                                className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                              >
+                                <LogIn className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Recent Activity */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {selectedOrg.activityLogs.map((log, index) => (
+                      <div key={index} className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">{log.action}</div>
+                          <div className="text-xs text-gray-500">by {log.user_name}</div>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(log.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

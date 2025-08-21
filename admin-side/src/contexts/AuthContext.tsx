@@ -2,16 +2,16 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface Admin {
-  id: number;
+  id: string;
+  name: string;
   email: string;
-  full_name: string;
   role: string;
 }
 
 interface AuthContextType {
   admin: Admin | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }
@@ -36,38 +36,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const savedToken = localStorage.getItem('admin_token');
-      if (savedToken) {
-        try {
-          const response = await fetch('http://localhost:5000/api/admin/auth/profile', {
-            headers: {
-              Authorization: `Bearer ${savedToken}`,
-            },
-          });
+    checkAuthStatus();
+  }, []);
 
-          if (response.ok) {
-            const data = await response.json();
-            setAdmin(data.admin);
-            setToken(savedToken);
-          } else {
-            localStorage.removeItem('admin_token');
-            setToken(null);
-          }
-        } catch (error) {
-          console.error('Auth initialization error:', error);
+  const checkAuthStatus = async () => {
+    const savedToken = localStorage.getItem('admin_token');
+    if (savedToken) {
+      try {
+        const response = await fetch('http://localhost:5000/api/admin/profile', {
+          headers: {
+            Authorization: `Bearer ${savedToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const adminData = await response.json();
+          setAdmin(adminData);
+          setToken(savedToken);
+        } else {
           localStorage.removeItem('admin_token');
           setToken(null);
         }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('admin_token');
+        setToken(null);
       }
-      setLoading(false);
-    };
+    }
+    setLoading(false);
+  };
 
-    initializeAuth();
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    const response = await fetch('http://localhost:5000/api/admin/auth/login', {
+const login = async (email: string, password: string): Promise<boolean> => {
+  try {
+    const response = await fetch('http://localhost:5000/api/auth/login', {  // use 0.0.0.0 instead of localhost
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,30 +76,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await response.json();
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Check if user is super_admin
+      if (data.user.role !== 'super_admin') {
+        throw new Error('Access denied. Super admin privileges required.');
+      }
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed');
+      setAdmin(data.user);
+      setToken(data.token);
+      localStorage.setItem('admin_token', data.token);
+      return true;
     }
-
-    setAdmin(data.admin);
-    setToken(data.token);
-    localStorage.setItem('admin_token', data.token);
-  };
-
+    return false;
+  } catch (error) {
+    console.error('Login failed:', error);
+    return false;
+  }
+};
   const logout = () => {
     setAdmin(null);
     setToken(null);
     localStorage.removeItem('admin_token');
   };
 
-  const value = {
-    admin,
-    token,
-    login,
-    logout,
-    loading,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ admin, token, login, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

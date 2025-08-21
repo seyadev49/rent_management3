@@ -62,7 +62,6 @@ const getBillingOverview = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 // Get all subscriptions with details
 const getAllSubscriptions = async (req, res) => {
   try {
@@ -82,6 +81,7 @@ const getAllSubscriptions = async (req, res) => {
       params.push(plan);
     }
 
+    // Subscriptions query (limit/offset interpolated, rest still parameterized)
     const [subscriptions] = await db.execute(`
       SELECT 
         sh.*,
@@ -92,10 +92,10 @@ const getAllSubscriptions = async (req, res) => {
       JOIN organizations o ON sh.organization_id = o.id
       ${whereClause}
       ORDER BY sh.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+      LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
+    `, params);
 
-    // Get total count
+    // Count query (still parameterized)
     const [countResult] = await db.execute(`
       SELECT COUNT(*) as total
       FROM subscription_history sh
