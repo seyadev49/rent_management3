@@ -1,3 +1,21 @@
+-- rent_management.admin_actions definition
+
+CREATE TABLE "admin_actions" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "admin_id" int NOT NULL,
+  "action" varchar(100) NOT NULL,
+  "target_type" enum('user','organization','subscription','system') NOT NULL,
+  "target_id" int DEFAULT NULL,
+  "details" json DEFAULT NULL,
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "admin_id" ("admin_id"),
+  KEY "action" ("action"),
+  KEY "target_type" ("target_type"),
+  KEY "created_at" ("created_at")
+);
+
+
 -- rent_management.organizations definition
 
 CREATE TABLE "organizations" (
@@ -6,7 +24,7 @@ CREATE TABLE "organizations" (
   "email" varchar(255) NOT NULL,
   "phone" varchar(20) DEFAULT NULL,
   "address" text,
-  "trial_start_date" date NOT NULL,
+  "trial_start_date" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "trial_end_date" date NOT NULL,
   "is_active" tinyint(1) DEFAULT '1',
   "subscription_status" enum('trial','active','suspended','cancelled') DEFAULT 'trial',
@@ -87,16 +105,39 @@ CREATE TABLE "users" (
   "password" varchar(255) NOT NULL,
   "full_name" varchar(255) NOT NULL,
   "phone" varchar(20) DEFAULT NULL,
-  "role" enum('admin','landlord','tenant','maintenance') NOT NULL,
+  "role" enum('super_admin','admin','landlord','tenant','maintenance') NOT NULL,
   "is_active" tinyint(1) DEFAULT '1',
   "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   "updated_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  "last_login" timestamp NULL DEFAULT NULL,
   "reset_token" varchar(255) DEFAULT NULL,
   "reset_token_expiry" datetime DEFAULT NULL,
+  "password_reset_required" tinyint(1) DEFAULT '0',
   PRIMARY KEY ("id"),
   UNIQUE KEY "email" ("email"),
   KEY "organization_id" ("organization_id"),
   CONSTRAINT "users_ibfk_1" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
+);
+
+
+-- rent_management.activity_logs definition
+
+CREATE TABLE "activity_logs" (
+  "id" int NOT NULL AUTO_INCREMENT,
+  "user_id" int NOT NULL,
+  "organization_id" int NOT NULL,
+  "action" varchar(255) NOT NULL,
+  "details" text,
+  "ip_address" varchar(45) DEFAULT NULL,
+  "user_agent" text,
+  "created_at" timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY ("id"),
+  KEY "user_id" ("user_id"),
+  KEY "organization_id" ("organization_id"),
+  KEY "action" ("action"),
+  KEY "created_at" ("created_at"),
+  CONSTRAINT "activity_logs_ibfk_1" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE,
+  CONSTRAINT "activity_logs_ibfk_2" FOREIGN KEY ("organization_id") REFERENCES "organizations" ("id") ON DELETE CASCADE
 );
 
 
