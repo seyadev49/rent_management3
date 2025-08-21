@@ -45,6 +45,11 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/reports', reportRoutes);
 
+// Admin routes
+app.use('/api/admin/users', require('./routes/admin/adminUser'));
+app.use('/api/admin/billing', require('./routes/admin/adminBilling'));
+app.use('/api/admin/analytics', require('./routes/admin/adminAnalytics'));
+
 // // Schedule notification generation to run daily at 9 AM
 // cron.schedule('0 9 * * *', () => {
 //   console.log('Running scheduled notification generation...');
@@ -67,7 +72,8 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});cron.schedule('0 * * * *', () => {
+});
+cron.schedule('0 * * * *', () => {
   console.log('Running scheduled notification generation...');
   generateSystemNotifications();
 });
