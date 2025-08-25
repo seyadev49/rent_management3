@@ -115,6 +115,33 @@ const getTenantById = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+const getSecurityDeposit = (req, res) => {
+  const tenantId = req.params.id; // this is tenants.id
+
+  const query = `
+    SELECT pu.deposit
+    FROM rental_contracts rc
+    JOIN property_units pu ON rc.unit_id = pu.id
+    WHERE rc.tenant_id = ?
+    LIMIT 1
+  `;
+
+  db.query(query, [tenantId], (err, results) => {
+    if (err) {
+      console.error('[getSecurityDeposit] DB error:', err);
+      return res.status(500).json({ message: 'Database error' });
+    }
+
+    if (results.length === 0) {
+      console.log('[getSecurityDeposit] No deposit found for tenant:', tenantId);
+      return res.json({ securityDeposit: null });
+    }
+
+    const deposit = results[0].deposit;
+    console.log('[getSecurityDeposit] Found deposit:', deposit);
+    return res.json({ securityDeposit: deposit });
+  });
+};
 
 const updateTenant = async (req, res) => {
   try {
@@ -371,5 +398,6 @@ module.exports = {
   updateTenant,
   deleteTenant,
   terminateTenant,
-  getTerminatedTenants
+  getTerminatedTenants,
+  getSecurityDeposit
 };

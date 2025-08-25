@@ -1,0 +1,643 @@
+
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Settings as SettingsIcon, User, Building2, Bell, Shield, Edit2, Save, X, Crown, Calendar, CreditCard } from 'lucide-react';
+import UpgradeModal from '../components/UpgradeModal';
+
+interface SubscriptionDetails {
+  subscription_status: string;
+  subscription_plan: string;
+  subscription_price: number;
+  billing_cycle: string;
+  next_renewal_date: string;
+  daysUntilRenewal: number;
+}
+
+const Settings: React.FC = () => {
+  const { user, token, setUser } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingOrganization, setIsEditingOrganization] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetails | null>(null);
+  const [profileData, setProfileData] = useState({
+    fullName: user?.fullName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [organizationData, setOrganizationData] = useState({
+    organizationName: user?.organizationName || '',
+    email: '',
+    phone: '',
+    address: ''
+  });
+  const [updateStatus, setUpdateStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [orgUpdateStatus, setOrgUpdateStatus] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [orgLoading, setOrgLoading] = useState(false);
+
+  useEffect(() => {
+    fetchSubscriptionDetails();
+    fetchOrganizationData();
+  }, [token]);
+
+  useEffect(() => {
+    if (user) {
+      setProfileData(prev => ({
+        ...prev,
+        fullName: user.fullName || '',
+        email: user.email || '',
+        phone: user.phone || ''
+      }));
+      setOrganizationData(prev => ({
+        ...prev,
+        organizationName: user.organizationName || ''
+      }));
+    }
+  }, [user]);
+
+  const fetchSubscriptionDetails = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/subscription/status', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubscriptionDetails(data.subscription);
+      } else {
+        console.log('Subscription details not available');
+      }
+    } catch (error) {
+      console.log('Backend server not running or subscription service unavailable');
+    }
+  };
+
+  const fetchOrganizationData = async () => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/organization', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const org = data.organization;
+        setOrganizationData({
+          organizationName: org.name || '',
+          email: org.email || '',
+          phone: org.phone || '',
+          address: org.address || ''
+        });
+      }
+    } catch (error) {
+      console.log('Failed to fetch organization data');
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleOrganizationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setOrganizationData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setUpdateStatus(null);
+
+    // Validate password confirmation
+    if (profileData.newPassword && profileData.newPassword !== profileData.confirmPassword) {
+      setUpdateStatus({ type: 'error', message: 'New passwords do not match' });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const updateData: any = {
+        fullName: profileData.fullName,
+        email: profileData.email,
+        phone: profileData.phone,
+      };
+
+      if (profileData.newPassword) {
+        updateData.currentPassword = profileData.currentPassword;
+        updateData.newPassword = profileData.newPassword;
+      }
+
+      const response = await fetch('http://localhost:5000/api/auth/update-profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUpdateStatus({ type: 'success', message: 'Profile updated successfully!' });
+        setIsEditing(false);
+        
+        // Update user context with new data
+        if (setUser && data.user) {
+          setUser(data.user);
+        }
+        
+        // Immediately sync form state with updated backend data
+        setProfileData({
+          fullName: data.user?.fullName || '',
+          email: data.user?.email || '',
+          phone: data.user?.phone || '',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setUpdateStatus(null), 3000);
+      } else {
+        const data = await response.json();
+        setUpdateStatus({ type: 'error', message: data.message || 'Update failed' });
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      setUpdateStatus({ type: 'error', message: 'Update failed. Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOrganizationUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOrgLoading(true);
+    setOrgUpdateStatus(null);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/update-organization', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(organizationData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setOrgUpdateStatus({ type: 'success', message: 'Organization updated successfully!' });
+        setIsEditingOrganization(false);
+        
+        // Update user context with new organization name
+        if (data.organization && user && setUser) {
+          setUser({
+            ...user,
+            organizationName: data.organization.name || data.organization.organizationName
+          });
+        }
+        
+        // Immediately sync form state with updated backend data
+        setOrganizationData({
+          organizationName: data.organization?.name || data.organization?.organizationName || '',
+          email: data.organization?.email || '',
+          phone: data.organization?.phone || '',
+          address: data.organization?.address || ''
+        });
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setOrgUpdateStatus(null), 3000);
+      } else {
+        const data = await response.json();
+        setOrgUpdateStatus({ type: 'error', message: data.message || 'Update failed' });
+      }
+    } catch (error) {
+      console.error('Organization update error:', error);
+      setOrgUpdateStatus({ type: 'error', message: 'Update failed. Please try again.' });
+    } finally {
+      setOrgLoading(false);
+    }
+  };
+
+  const getPlanDisplayName = (planId: string) => {
+    const plans = {
+      basic: 'Basic Plan',
+      professional: 'Professional Plan',
+      enterprise: 'Enterprise Plan'
+    };
+    return plans[planId as keyof typeof plans] || planId;
+  };
+
+  const getPlanColor = (planId: string) => {
+    const colors = {
+      basic: 'bg-blue-100 text-blue-800',
+      professional: 'bg-purple-100 text-purple-800',
+      enterprise: 'bg-gold-100 text-gold-800'
+    };
+    return colors[planId as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors = {
+      active: 'bg-green-100 text-green-800',
+      trial: 'bg-yellow-100 text-yellow-800',
+      overdue: 'bg-red-100 text-red-800',
+      suspended: 'bg-red-100 text-red-800',
+      cancelled: 'bg-gray-100 text-gray-800'
+    };
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-600">Manage your account and organization settings</p>
+      </div>
+
+      {/* Update Status Message */}
+      {updateStatus && (
+        <div className={`p-4 rounded-lg ${
+          updateStatus.type === 'success' 
+            ? 'bg-green-50 border border-green-200 text-green-800' 
+            : 'bg-red-50 border border-red-200 text-red-800'
+        }`}>
+          {updateStatus.message}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Profile Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <User className="h-5 w-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+            </div>
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              {isEditing ? <X className="h-4 w-4 mr-1" /> : <Edit2 className="h-4 w-4 mr-1" />}
+              {isEditing ? 'Cancel' : 'Edit'}
+            </button>
+          </div>
+
+          <form onSubmit={handleProfileUpdate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                name="fullName"
+                value={profileData.fullName}
+                onChange={handleInputChange}
+                readOnly={!isEditing}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditing ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={profileData.email}
+                onChange={handleInputChange}
+                readOnly={!isEditing}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditing ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            {/* <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                value={profileData.phone}
+                onChange={handleInputChange}
+                readOnly={!isEditing}
+                placeholder="Enter phone number"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditing ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div> */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <input
+                type="text"
+                value={user?.role || ''}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+              />
+            </div>
+
+            {isEditing && (
+              <>
+                <hr className="my-4" />
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Change Password</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={profileData.currentPassword}
+                    onChange={handleInputChange}
+                    placeholder="Enter current password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={profileData.newPassword}
+                    onChange={handleInputChange}
+                    placeholder="Enter new password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={profileData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Confirm new password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {loading ? 'Updating...' : 'Save Changes'}
+                </button>
+              </>
+            )}
+          </form>
+        </div>
+
+        {/* Subscription Plan Details */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center mb-4">
+            <Crown className="h-5 w-5 text-gray-600 mr-2" />
+            <h2 className="text-lg font-semibold text-gray-900">Subscription Plan</h2>
+          </div>
+
+          {subscriptionDetails ? (
+            <div className="space-y-4">
+              {/* Current Plan */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Current Plan</span>
+                <div className="flex items-center">
+                  <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${getPlanColor(subscriptionDetails.subscription_plan)}`}>
+                    {getPlanDisplayName(subscriptionDetails.subscription_plan)}
+                  </span>
+                  <span className="ml-2 inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                    Active Plan
+                  </span>
+                </div>
+              </div>
+
+              {/* Plan Price */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Price</span>
+                <span className="text-sm text-gray-900 font-semibold">
+                  ${subscriptionDetails.subscription_price}/{subscriptionDetails.billing_cycle === 'monthly' ? 'month' : subscriptionDetails.billing_cycle}
+                </span>
+              </div>
+
+              {/* Billing Cycle */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Billing Cycle</span>
+                <div className="flex items-center">
+                  <CreditCard className="h-4 w-4 text-gray-500 mr-1" />
+                  <span className="text-sm text-gray-900 capitalize">
+                    {subscriptionDetails.billing_cycle}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Status</span>
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(subscriptionDetails.subscription_status)}`}>
+                  {subscriptionDetails.subscription_status.replace('_', ' ').toUpperCase()}
+                </span>
+              </div>
+
+              {/* Next Renewal */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Next Renewal</span>
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 text-gray-500 mr-1" />
+                  <span className="text-sm text-gray-900">
+                    {new Date(subscriptionDetails.next_renewal_date).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Days Until Renewal */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Days Until Renewal</span>
+                <span className={`text-sm font-semibold ${
+                  subscriptionDetails.daysUntilRenewal <= 7 ? 'text-orange-600' : 'text-gray-900'
+                }`}>
+                  {subscriptionDetails.daysUntilRenewal} days
+                </span>
+              </div>
+
+              {/* Upgrade Button */}
+              <div className="pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium"
+                >
+                  Upgrade Plan
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">Loading subscription details...</p>
+            </div>
+          )}
+        </div>
+
+        {/* Organization Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Building2 className="h-5 w-5 text-gray-600 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">Organization</h2>
+            </div>
+            <button
+              onClick={() => setIsEditingOrganization(!isEditingOrganization)}
+              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              {isEditingOrganization ? <X className="h-4 w-4 mr-1" /> : <Edit2 className="h-4 w-4 mr-1" />}
+              {isEditingOrganization ? 'Cancel' : 'Edit'}
+            </button>
+          </div>
+
+          {/* Organization Update Status Message */}
+          {orgUpdateStatus && (
+            <div className={`mb-4 p-3 rounded-lg ${
+              orgUpdateStatus.type === 'success' 
+                ? 'bg-green-50 border border-green-200 text-green-800' 
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              {orgUpdateStatus.message}
+            </div>
+          )}
+
+          <form onSubmit={handleOrganizationUpdate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
+              <input
+                type="text"
+                name="organizationName"
+                value={organizationData.organizationName}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Email</label>
+              <input
+                type="email"
+                name="email"
+                value={organizationData.email}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                placeholder="Organization email"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                value={organizationData.phone}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                placeholder="Organization phone"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <input
+                type="text"
+                name="address"
+                value={organizationData.address}
+                onChange={handleOrganizationInputChange}
+                readOnly={!isEditingOrganization}
+                placeholder="Organization address"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
+                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                }`}
+              />
+            </div>
+
+            {isEditingOrganization && (
+              <button
+                type="submit"
+                disabled={orgLoading}
+                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {orgLoading ? 'Updating...' : 'Save Changes'}
+              </button>
+            )}
+          </form>
+        </div>
+
+        {/* Notification Settings */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center mb-4">
+            <Bell className="h-5 w-5 text-gray-600 mr-2" />
+            <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Rent Due Reminders</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Contract Expiry Alerts</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">Maintenance Updates</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Trial Upgrade Section */}
+      {user?.subscriptionStatus === 'trial' && (
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Upgrade Your Plan</h3>
+              <p className="text-blue-100 mb-4">
+                Your trial expires on {new Date(user.trialEndDate).toLocaleDateString()}. 
+                Upgrade now to continue using all features.
+              </p>
+            </div>
+            <button 
+              onClick={() => setShowUpgradeModal(true)}
+              className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200"
+            >
+              Upgrade Now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+      />
+    </div>
+  );
+};
+
+export default Settings;
