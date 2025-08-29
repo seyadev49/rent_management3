@@ -25,44 +25,42 @@ const generateReports = async (req, res) => {
     const { type, dateRange, startDate, endDate, propertyId, tenantId } = req.query;
     const organizationId = req.user.organization_id;
 
-    // Build date filter
-    let dateFilter = '';
-    let dateParams = [];
+   // Build date filter
+let dateFilter = '';
+let dateParams = [];
 
-    // This logic creates a dynamic date filter based on user selection
-    if (dateRange === 'custom' && startDate && endDate) {
-      dateFilter = ' AND DATE(p.created_at) BETWEEN ? AND ?';
-      dateParams = [startDate, endDate];
-    } else {
-      const now = new Date();
-      let filterDate;
+if (dateRange === 'custom' && startDate && endDate) {
+  dateFilter = ' AND DATE(%TABLE_ALIAS%.created_at) BETWEEN ? AND ?';
+  dateParams = [startDate, endDate];
+} else {
+  const now = new Date();
+  let filterDate;
 
-      switch (dateRange) {
-        case 'week':
-          filterDate = new Date(now);
-          filterDate.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          filterDate = new Date(now);
-          filterDate.setMonth(now.getMonth() - 1);
-          break;
-        case 'quarter':
-          filterDate = new Date(now);
-          filterDate.setMonth(now.getMonth() - 3);
-          break;
-        case 'year':
-          filterDate = new Date(now);
-          filterDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default: // Default to 'month'
-          filterDate = new Date(now);
-          filterDate.setMonth(now.getMonth() - 1);
-      }
-      // Note: The date filter has been updated to reference a table alias 'p' or 'mr' etc.
-      // This will be specified in each report function to avoid ambiguity.
-      dateFilter = ` AND DATE(%TABLE_ALIAS%.created_at) >= ?`;
-      dateParams = [filterDate.toISOString().split('T')[0]];
-    }
+  switch (dateRange) {
+    case 'week':
+      filterDate = new Date(now);
+      filterDate.setDate(now.getDate() - 7);
+      break;
+    case 'month':
+      filterDate = new Date(now);
+      filterDate.setMonth(now.getMonth() - 1);
+      break;
+    case 'quarter':
+      filterDate = new Date(now);
+      filterDate.setMonth(now.getMonth() - 3);
+      break;
+    case 'year':
+      filterDate = new Date(now);
+      filterDate.setFullYear(now.getFullYear() - 1);
+      break;
+    default:
+      filterDate = new Date(now);
+      filterDate.setMonth(now.getMonth() - 1);
+  }
+
+  dateFilter = ` AND DATE(%TABLE_ALIAS%.created_at) >= ?`;
+  dateParams = [filterDate.toISOString().split('T')[0]];
+}
 
     // FIX: Call the new data fetching function
     const data = await getReportData(type, organizationId, dateFilter, dateParams, propertyId, tenantId);

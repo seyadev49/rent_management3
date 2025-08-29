@@ -14,6 +14,7 @@ interface User {
   subscriptionPrice?: number;
   nextRenewalDate?: string;
   daysUntilRenewal?: number;
+  phone:number;
 }
 
 interface AuthContextType {

@@ -393,7 +393,7 @@ const generateMonthlyRentPayments = async () => {
             contract.id,
             contract.tenant_id,
             contract.monthly_rent,
-            dueDate,  // temporary payment date = due date
+            dueDate,
             dueDate
           ]
         );

@@ -37,71 +37,66 @@ export const TerminateTenantModal: React.FC<TerminateTenantModalProps> = ({
   token,
 }) => {
   const [securityDeposit, setSecurityDeposit] = useState<number | null>(null);
-const [depositLoading, setDepositLoading] = useState(false);
-const [depositError, setDepositError] = useState<string | null>(null);
-useEffect(() => {
-  if (!isOpen || !tenantId || !token) return;
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!isOpen || !tenantId || !token) return;
 
-  let isCancelled = false; // to avoid state update after unmount
-  setDepositLoading(true);
-  setDepositError(null);
-  setSecurityDeposit(null);
+    let isCancelled = false;
+    setDepositLoading(true);
+    setDepositError(null);
+    setSecurityDeposit(null);
 
-  const fetchDeposit = async () => {
-    try {
-      const res = await fetch(
-        `http://localhost:5000/api/tenants/${tenantId}/security-deposit`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
+    const fetchDeposit = async () => {
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/tenants/${tenantId}/security-deposit`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Server error ${res.status}: ${errText}`);
         }
-      );
 
-      console.log('[DepositEffect] Response status:', res.status);
+        const data = await res.json();
 
-      if (!res.ok) {
-        // handle non-200 responses
-        const errText = await res.text();
-        throw new Error(`Server error ${res.status}: ${errText}`);
-      }
-
-      const data = await res.json();
-      console.log('[DepositEffect] Data received:', data);
-
-      if (!isCancelled) {
-        if (data && typeof data.securityDeposit === 'number') {
-          setSecurityDeposit(data.securityDeposit);
-        } else {
-          setSecurityDeposit(null); // fallback if field missing
+        if (!isCancelled) {
+          if (data && (typeof data.securityDeposit === 'number' || 
+               (typeof data.securityDeposit === 'string' && !isNaN(parseFloat(data.securityDeposit))))) {
+            setSecurityDeposit(parseFloat(data.securityDeposit));
+          } else {
+            setSecurityDeposit(null);
+          }
         }
+      } catch (error: any) {
+        console.error('[DepositEffect] Error fetching deposit:', error);
+        if (!isCancelled) setDepositError('Could not retrieve security deposit.');
+      } finally {
+        if (!isCancelled) setDepositLoading(false);
       }
-    } catch (error: any) {
-      console.error('[DepositEffect] Error fetching deposit:', error);
-      if (!isCancelled) setDepositError('Could not retrieve security deposit.');
-    } finally {
-      if (!isCancelled) setDepositLoading(false);
-    }
-  };
+    };
 
-  // set a fail-safe timeout so Loading never stays forever
-  const timeout = setTimeout(() => {
-    if (!isCancelled && depositLoading) {
-      setDepositLoading(false);
-      setDepositError('Request timed out.');
-    }
-  }, 7000); // 7 seconds timeout
+    const timeout = setTimeout(() => {
+      if (!isCancelled && depositLoading) {
+        setDepositLoading(false);
+        setDepositError('Request timed out.');
+      }
+    }, 7000);
 
-  fetchDeposit();
+    fetchDeposit();
 
-  return () => {
-    isCancelled = true;
-    clearTimeout(timeout);
-  };
-}, [isOpen, tenantId, token]);
-
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [isOpen, tenantId, token]);
 
   if (!isOpen) return null;
 
-  // Add deduction with unique id
   const addDeduction = () => {
     onFormChange({
       deductions: [
@@ -111,12 +106,10 @@ useEffect(() => {
     });
   };
 
-  // Remove deduction by id
   const removeDeduction = (id: number | string) => {
     onFormChange({ deductions: formData.deductions.filter((d) => d.id !== id) });
   };
 
-  // Update deduction by id
   const updateDeduction = (
     id: number | string,
     field: 'description' | 'amount',
@@ -131,29 +124,40 @@ useEffect(() => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen">
-        <div className="fixed inset-0 bg-gray-500 opacity-75"></div>
-        <div className="inline-block bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full">
+        <div className="fixed inset-0 bg-gray-500 opacity-75 dark:bg-gray-900"></div>
+        <div className="inline-block bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:max-w-lg sm:w-full">
           <form onSubmit={onSubmit}>
-            <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                 Terminate Tenant: {tenantName}
               </h3>
-              {/* Security Deposit Info */}
+              
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Security Deposit:
                 </label>
-                {depositError ? (
-  <div className="text-red-600 text-sm">{depositError}</div>
-) : securityDeposit !== null ? (
-  <div className="text-green-700 font-semibold text-lg">
-    {securityDeposit} ETB
-  </div>
-) : (
-  <div className="text-gray-500 text-sm">No security deposit info.</div>
-)}
-
+                {depositLoading ? (
+                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    Loading deposit information...
+                  </div>
+                ) : depositError ? (
+                  <div className="text-red-600 dark:text-red-400 text-sm">{depositError}</div>
+                ) : securityDeposit !== null ? (
+                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                    <div className="text-green-700 dark:text-green-400 font-semibold text-lg">
+                      ${securityDeposit}
+                    </div>
+                    <div className="text-green-600 dark:text-green-500 text-sm">Current security deposit on file</div>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                    <div className="text-yellow-700 dark:text-yellow-400 text-sm">No security deposit information found.</div>
+                    <div className="text-yellow-600 dark:text-yellow-500 text-xs">This tenant may not have an active contract.</div>
+                  </div>
+                )}
               </div>
+              
               <div className="space-y-4">
                 <input
                   type="date"
@@ -161,33 +165,34 @@ useEffect(() => {
                   required
                   value={formData.terminationDate}
                   onChange={(e) => onFormChange({ terminationDate: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                 />
                 <select
                   name="terminationReason"
                   required
                   value={formData.terminationReason}
                   onChange={(e) => onFormChange({ terminationReason: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                 >
-                  <option value="">Select reason</option>
-                  <option value="lease_expired">Lease Expired</option>
-                  <option value="tenant_request">Tenant Request</option>
-                  <option value="non_payment">Non-Payment</option>
-                  <option value="lease_violation">Lease Violation</option>
-                  <option value="property_sale">Property Sale</option>
-                  <option value="other">Other</option>
+                  <option value="" className="text-gray-900 dark:text-white">Select reason</option>
+                  <option value="lease_expired" className="text-gray-900 dark:text-white">Lease Expired</option>
+                  <option value="tenant_request" className="text-gray-900 dark:text-white">Tenant Request</option>
+                  <option value="non_payment" className="text-gray-900 dark:text-white">Non-Payment</option>
+                  <option value="lease_violation" className="text-gray-900 dark:text-white">Lease Violation</option>
+                  <option value="property_sale" className="text-gray-900 dark:text-white">Property Sale</option>
+                  <option value="other" className="text-gray-900 dark:text-white">Other</option>
                 </select>
                 <select
                   name="securityDepositAction"
                   required
                   value={formData.securityDepositAction}
                   onChange={(e) => onFormChange({ securityDepositAction: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                 >
-                  <option value="return_full">Return Full Deposit</option>
-                  <option value="return_partial">Return Partial Deposit</option>
-                  <option value="keep_full">Keep Full Deposit</option>
+                  <option value="" className="text-gray-900 dark:text-white">Select action</option>
+                  <option value="return_full" className="text-gray-900 dark:text-white">Return Full Deposit</option>
+                  <option value="return_partial" className="text-gray-900 dark:text-white">Return Partial Deposit</option>
+                  <option value="keep_full" className="text-gray-900 dark:text-white">Keep Full Deposit</option>
                 </select>
                 {formData.securityDepositAction === 'return_partial' && (
                   <input
@@ -199,11 +204,11 @@ useEffect(() => {
                       onFormChange({ partialReturnAmount: e.target.value })
                     }
                     placeholder="Partial Return Amount"
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   />
                 )}
                 <div>
-                  <label className="block text-sm">Deductions</label>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300">Deductions</label>
                   {formData.deductions.map((d) => (
                     <div key={d.id} className="flex space-x-2 mb-2">
                       <input
@@ -213,7 +218,7 @@ useEffect(() => {
                         onChange={(e) =>
                           updateDeduction(d.id, 'description', e.target.value)
                         }
-                        className="flex-1 px-3 py-2 border rounded-lg"
+                        className="flex-1 px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                       />
                       <input
                         type="number"
@@ -224,12 +229,12 @@ useEffect(() => {
                         onChange={(e) =>
                           updateDeduction(d.id, 'amount', parseFloat(e.target.value) || 0)
                         }
-                        className="w-24 px-3 py-2 border rounded-lg"
+                        className="w-24 px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                       />
                       <button
                         type="button"
                         onClick={() => removeDeduction(d.id)}
-                        className="text-red-600"
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                       >
                         Remove
                       </button>
@@ -238,7 +243,7 @@ useEffect(() => {
                   <button
                     type="button"
                     onClick={addDeduction}
-                    className="text-blue-600 text-sm"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
                   >
                     + Add Deduction
                   </button>
@@ -251,21 +256,21 @@ useEffect(() => {
                   }
                   rows={3}
                   placeholder="Additional Notes"
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+            <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
               <button
                 type="submit"
-                className="w-full inline-flex justify-center rounded-lg border shadow-sm px-4 py-2 bg-red-600 text-white sm:ml-3 sm:w-auto"
+                className="w-full inline-flex justify-center rounded-lg border shadow-sm px-4 py-2 bg-red-600 hover:bg-red-700 text-white sm:ml-3 sm:w-auto"
               >
                 Terminate Tenant
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-3 w-full inline-flex justify-center rounded-lg border shadow-sm px-4 py-2 bg-white text-gray-700 sm:mt-0 sm:ml-3 sm:w-auto"
+                className="mt-3 w-full inline-flex justify-center rounded-lg border shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 sm:mt-0 sm:ml-3 sm:w-auto"
               >
                 Cancel
               </button>

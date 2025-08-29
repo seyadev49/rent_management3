@@ -128,16 +128,16 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
         <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+          <div className="absolute inset-0 bg-gray-500 opacity-75 dark:bg-gray-900"></div>
         </div>
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+          <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Upgrade Your Plan</h3>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Upgrade Your Plan</h3>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -147,28 +147,28 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
             <div className="flex items-center justify-center mb-8">
               <div className="flex items-center space-x-4">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  step === 'plan' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'
+                  step === 'plan' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'
                 }`}>
                   1
                 </div>
-                <div className="w-16 h-1 bg-gray-200">
+                <div className="w-16 h-1 bg-gray-200 dark:bg-gray-700">
                   <div className={`h-full bg-blue-600 transition-all duration-300 ${
                     step === 'payment' || step === 'receipt' ? 'w-full' : 'w-0'
                   }`}></div>
                 </div>
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
                   step === 'payment' ? 'bg-blue-600 text-white' : 
-                  step === 'receipt' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-400'
+                  step === 'receipt' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
                 }`}>
                   2
                 </div>
-                <div className="w-16 h-1 bg-gray-200">
+                <div className="w-16 h-1 bg-gray-200 dark:bg-gray-700">
                   <div className={`h-full bg-blue-600 transition-all duration-300 ${
                     step === 'receipt' ? 'w-full' : 'w-0'
                   }`}></div>
                 </div>
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  step === 'receipt' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400'
+                  step === 'receipt' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
                 }`}>
                   3
                 </div>
@@ -176,7 +176,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
             </div>
 
             {error && (
-              <div className="mb-6 flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
+              <div className="mb-6 flex items-center space-x-2 text-red-600 bg-red-50 dark:bg-red-900/20 dark:border-red-800/30 border border-red-200 dark:text-red-300 p-3 rounded-lg">
                 <AlertCircle className="h-5 w-5" />
                 <span className="text-sm">{error}</span>
               </div>
@@ -187,13 +187,13 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
               <div className="space-y-6">
                 {/* Billing Cycle Toggle */}
                 <div className="flex justify-center">
-                  <div className="bg-gray-100 p-1 rounded-lg">
+                  <div className="bg-gray-100 p-1 rounded-lg dark:bg-gray-700">
                     <button
                       onClick={() => setBillingCycle('monthly')}
                       className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
                         billingCycle === 'monthly'
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
+                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
                       }`}
                     >
                       Monthly
@@ -202,12 +202,12 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
                       onClick={() => setBillingCycle('annual')}
                       className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
                         billingCycle === 'annual'
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
+                          : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
                       }`}
                     >
                       Annual
-                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      <span className="ml-2 text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded-full">
                         Save 17%
                       </span>
                     </button>
@@ -225,8 +225,8 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
                         key={plan.id}
                         className={`border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 relative ${
                           selectedPlan === plan.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                         }`}
                         onClick={() => setSelectedPlan(plan.id)}
                       >
@@ -239,20 +239,20 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
                         )}
                         
                         <div className="text-center">
-                          <h4 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h4>
+                          <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{plan.name}</h4>
                           <div className="mb-4">
-                            <span className="text-3xl font-bold text-gray-900">${price}</span>
-                            <span className="text-gray-600">/{billingCycle === 'annual' ? 'year' : 'month'}</span>
+                            <span className="text-3xl font-bold text-gray-900 dark:text-white">${price}</span>
+                            <span className="text-gray-600 dark:text-gray-400">/{billingCycle === 'annual' ? 'year' : 'month'}</span>
                             {billingCycle === 'annual' && (
-                              <div className="text-sm text-green-600 font-medium">
+                              <div className="text-sm text-green-600 dark:text-green-400 font-medium">
                                 ${plan.price}/month billed annually
                               </div>
                             )}
                           </div>
-                          <ul className="space-y-2 text-sm text-gray-600">
+                          <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                             {plan.features.map((feature, index) => (
                               <li key={index} className="flex items-center">
-                                <Check className="h-4 w-4 text-green-500 mr-2" />
+                                <Check className="h-4 w-4 text-green-500 dark:text-green-400 mr-2" />
                                 {feature}
                               </li>
                             ))}
@@ -269,64 +269,64 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
             {step === 'payment' && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Choose Payment Method</h4>
-                  <p className="text-gray-600">Select how you'd like to pay for your subscription</p>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Choose Payment Method</h4>
+                  <p className="text-gray-600 dark:text-gray-400">Select how you'd like to pay for your subscription</p>
                 </div>
 
                 <div className="space-y-4">
-                  <label className="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
+                  <label className="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors dark:border-gray-700 dark:hover:border-blue-400">
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="bank_transfer"
                       checked={paymentMethod === 'bank_transfer'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:bg-gray-700 dark:border-gray-600"
                     />
                     <div className="ml-4 flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                      <div className="p-2 bg-blue-100 rounded-lg mr-3 dark:bg-blue-900/30">
                         <span className="text-blue-600 text-lg">🏦</span>
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">Bank Transfer</div>
-                        <div className="text-xs text-gray-500">Transfer to our bank account</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">Bank Transfer</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Transfer to our bank account</div>
                       </div>
                     </div>
                   </label>
 
-                  <label className="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors">
+                  <label className="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition-colors dark:border-gray-700 dark:hover:border-blue-400">
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="telebirr"
                       checked={paymentMethod === 'telebirr'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:bg-gray-700 dark:border-gray-600"
                     />
                     <div className="ml-4 flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg mr-3">
+                      <div className="p-2 bg-green-100 rounded-lg mr-3 dark:bg-green-900/30">
                         <span className="text-green-600 text-lg">📱</span>
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">Telebirr</div>
-                        <div className="text-xs text-gray-500">Mobile payment via Telebirr</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">Telebirr</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Mobile payment via Telebirr</div>
                       </div>
                     </div>
                   </label>
                 </div>
 
                 {/* Payment Instructions */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h5 className="font-semibold text-blue-900 mb-2">Payment Instructions</h5>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 dark:bg-blue-900/20 dark:border-blue-800/30">
+                  <h5 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">Payment Instructions</h5>
                   {paymentMethod === 'bank_transfer' ? (
-                    <div className="text-sm text-blue-800 space-y-1">
+                    <div className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
                       <p><strong>Bank:</strong> Commercial Bank of Ethiopia</p>
                       <p><strong>Account Number:</strong> 1000123456789</p>
                       <p><strong>Account Name:</strong> RentFlow Technologies</p>
                       <p><strong>Amount:</strong> ${getPrice()} USD</p>
                     </div>
                   ) : (
-                    <div className="text-sm text-blue-800 space-y-1">
+                    <div className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
                       <p><strong>Telebirr Number:</strong> +251911123456</p>
                       <p><strong>Account Name:</strong> RentFlow Technologies</p>
                       <p><strong>Amount:</strong> ${getPrice()} USD equivalent in ETB</p>
@@ -340,11 +340,11 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
             {step === 'receipt' && (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Upload Payment Receipt</h4>
-                  <p className="text-gray-600">Please upload your payment receipt to confirm the upgrade</p>
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Upload Payment Receipt</h4>
+                  <p className="text-gray-600 dark:text-gray-400">Please upload your payment receipt to confirm the upgrade</p>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors dark:border-gray-700 dark:hover:border-blue-400">
                   <input
                     type="file"
                     id="receipt-upload"
@@ -353,23 +353,23 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
                     className="hidden"
                   />
                   <label htmlFor="receipt-upload" className="cursor-pointer">
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-2">
+                    <Upload className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                    <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                       {receiptFile ? receiptFile.name : 'Click to upload receipt'}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       Supported formats: JPG, PNG, PDF (Max 10MB)
                     </p>
                   </label>
                 </div>
 
                 {receiptFile && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 dark:bg-green-900/20 dark:border-green-800/30">
                     <div className="flex items-center">
-                      <FileText className="h-5 w-5 text-green-600 mr-2" />
+                      <FileText className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
                       <div>
-                        <p className="text-sm font-medium text-green-800">{receiptFile.name}</p>
-                        <p className="text-xs text-green-600">
+                        <p className="text-sm font-medium text-green-800 dark:text-green-300">{receiptFile.name}</p>
+                        <p className="text-xs text-green-600 dark:text-green-400">
                           {(receiptFile.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       </div>
@@ -379,29 +379,29 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
 
                 {/* Order Summary */}
                 {selectedPlanData && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h5 className="font-semibold text-gray-900 mb-3">Order Summary</h5>
+                  <div className="bg-gray-50 rounded-lg p-4 dark:bg-gray-700/50">
+                    <h5 className="font-semibold text-gray-900 dark:text-white mb-3">Order Summary</h5>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">{selectedPlanData.name}</span>
-                        <span className="font-semibold text-gray-900">
+                        <span className="text-gray-600 dark:text-gray-400">{selectedPlanData.name}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
                           ${selectedPlanData.price}/{billingCycle === 'annual' ? 'month' : 'month'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Billing Cycle</span>
-                        <span className="text-gray-900 capitalize">{billingCycle}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Billing Cycle</span>
+                        <span className="text-gray-900 dark:text-white capitalize">{billingCycle}</span>
                       </div>
                       {billingCycle === 'annual' && (
-                        <div className="flex justify-between items-center text-green-600">
+                        <div className="flex justify-between items-center text-green-600 dark:text-green-400">
                           <span>Annual Discount (2 months free)</span>
                           <span>-${getSavings()}</span>
                         </div>
                       )}
-                      <hr className="my-2" />
+                      <hr className="my-2 border-gray-200 dark:border-gray-700" />
                       <div className="flex justify-between items-center font-semibold">
-                        <span className="text-gray-900">Total</span>
-                        <span className="text-gray-900">
+                        <span className="text-gray-900 dark:text-white">Total</span>
+                        <span className="text-gray-900 dark:text-white">
                           ${getPrice()}/{billingCycle === 'annual' ? 'year' : 'month'}
                         </span>
                       </div>
@@ -413,12 +413,12 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Footer Actions */}
-          <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             {step === 'plan' && (
               <button
                 onClick={handleNext}
                 disabled={!selectedPlan}
-                className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm"
+                className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm dark:bg-blue-700 dark:hover:bg-blue-800"
               >
                 Continue
               </button>
@@ -428,13 +428,13 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
               <>
                 <button
                   onClick={handleNext}
-                  className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm dark:bg-blue-700 dark:hover:bg-blue-800"
                 >
                   Continue to Receipt Upload
                 </button>
                 <button
                   onClick={handleBack}
-                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-200 dark:hover:bg-gray-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Back
                 </button>
@@ -446,14 +446,14 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
                 <button
                   onClick={handleUpgrade}
                   disabled={loading || !receiptFile}
-                  className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm"
+                  className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto sm:text-sm dark:bg-blue-700 dark:hover:bg-blue-800"
                 >
                   {loading ? 'Processing...' : 'Complete Upgrade'}
                 </button>
                 <button
                   onClick={handleBack}
                   disabled={loading}
-                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-200 dark:hover:bg-gray-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Back
                 </button>
@@ -463,7 +463,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-200 dark:hover:bg-gray-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
             >
               Cancel
             </button>

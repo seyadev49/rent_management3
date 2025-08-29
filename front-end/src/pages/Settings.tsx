@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Settings as SettingsIcon, User, Building2, Bell, Shield, Edit2, Save, X, Crown, Calendar, CreditCard } from 'lucide-react';
+import { Settings as User, Building2, Bell, Edit2, Save, X, Crown, Calendar, CreditCard } from 'lucide-react';
 import UpgradeModal from '../components/UpgradeModal';
 
 interface SubscriptionDetails {
@@ -248,37 +247,37 @@ const Settings: React.FC = () => {
 
   const getPlanColor = (planId: string) => {
     const colors = {
-      basic: 'bg-blue-100 text-blue-800',
-      professional: 'bg-purple-100 text-purple-800',
-      enterprise: 'bg-gold-100 text-gold-800'
+      basic: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+      professional: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+      enterprise: 'bg-gold-100 text-gold-800 dark:bg-yellow-900/30 dark:text-yellow-300'
     };
-    return colors[planId as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[planId as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };
 
   const getStatusColor = (status: string) => {
     const colors = {
-      active: 'bg-green-100 text-green-800',
-      trial: 'bg-yellow-100 text-yellow-800',
-      overdue: 'bg-red-100 text-red-800',
-      suspended: 'bg-red-100 text-red-800',
-      cancelled: 'bg-gray-100 text-gray-800'
+      active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      trial: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+      overdue: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+      suspended: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+      cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600">Manage your account and organization settings</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+        <p className="text-gray-600 dark:text-gray-400">Manage your account and organization settings</p>
       </div>
 
       {/* Update Status Message */}
       {updateStatus && (
         <div className={`p-4 rounded-lg ${
           updateStatus.type === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-800' 
-            : 'bg-red-50 border border-red-200 text-red-800'
+            ? 'bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800/30 dark:text-green-300' 
+            : 'bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800/30 dark:text-red-300'
         }`}>
           {updateStatus.message}
         </div>
@@ -286,15 +285,15 @@ const Settings: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Profile Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <User className="h-5 w-5 text-gray-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+              <User className="h-5 w-5 text-gray-600 dark:text-gray-400 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile</h2>
             </div>
             <button
               onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
             >
               {isEditing ? <X className="h-4 w-4 mr-1" /> : <Edit2 className="h-4 w-4 mr-1" />}
               {isEditing ? 'Cancel' : 'Edit'}
@@ -303,33 +302,33 @@ const Settings: React.FC = () => {
 
           <form onSubmit={handleProfileUpdate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
               <input
                 type="text"
                 name="fullName"
                 value={profileData.fullName}
                 onChange={handleInputChange}
                 readOnly={!isEditing}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditing ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditing ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
               <input
                 type="email"
                 name="email"
                 value={profileData.email}
                 onChange={handleInputChange}
                 readOnly={!isEditing}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditing ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditing ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div>
             {/* <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
               <input
                 type="tel"
                 name="phone"
@@ -337,62 +336,62 @@ const Settings: React.FC = () => {
                 onChange={handleInputChange}
                 readOnly={!isEditing}
                 placeholder="Enter phone number"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditing ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditing ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div> */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
               <input
                 type="text"
                 value={user?.role || ''}
                 readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
 
             {isEditing && (
               <>
-                <hr className="my-4" />
-                <h3 className="text-sm font-medium text-gray-900 mb-2">Change Password</h3>
+                <hr className="my-4 border-gray-200 dark:border-gray-700" />
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Change Password</h3>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
                   <input
                     type="password"
                     name="currentPassword"
                     value={profileData.currentPassword}
                     onChange={handleInputChange}
                     placeholder="Enter current password"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
                   <input
                     type="password"
                     name="newPassword"
                     value={profileData.newPassword}
                     onChange={handleInputChange}
                     placeholder="Enter new password"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
                   <input
                     type="password"
                     name="confirmPassword"
                     value={profileData.confirmPassword}
                     onChange={handleInputChange}
                     placeholder="Confirm new password"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-700 dark:hover:bg-blue-800"
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {loading ? 'Updating...' : 'Save Changes'}
@@ -403,22 +402,22 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Subscription Plan Details */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center mb-4">
-            <Crown className="h-5 w-5 text-gray-600 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-900">Subscription Plan</h2>
+            <Crown className="h-5 w-5 text-gray-600 dark:text-gray-400 mr-2" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Subscription Plan</h2>
           </div>
 
           {subscriptionDetails ? (
             <div className="space-y-4">
               {/* Current Plan */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Current Plan</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Current Plan</span>
                 <div className="flex items-center">
                   <span className={`inline-flex px-3 py-1 text-sm font-medium rounded-full ${getPlanColor(subscriptionDetails.subscription_plan)}`}>
                     {getPlanDisplayName(subscriptionDetails.subscription_plan)}
                   </span>
-                  <span className="ml-2 inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                  <span className="ml-2 inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                     Active Plan
                   </span>
                 </div>
@@ -426,18 +425,18 @@ const Settings: React.FC = () => {
 
               {/* Plan Price */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Price</span>
-                <span className="text-sm text-gray-900 font-semibold">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Price</span>
+                <span className="text-sm text-gray-900 dark:text-white font-semibold">
                   ${subscriptionDetails.subscription_price}/{subscriptionDetails.billing_cycle === 'monthly' ? 'month' : subscriptionDetails.billing_cycle}
                 </span>
               </div>
 
               {/* Billing Cycle */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Billing Cycle</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Billing Cycle</span>
                 <div className="flex items-center">
-                  <CreditCard className="h-4 w-4 text-gray-500 mr-1" />
-                  <span className="text-sm text-gray-900 capitalize">
+                  <CreditCard className="h-4 w-4 text-gray-500 dark:text-gray-400 mr-1" />
+                  <span className="text-sm text-gray-900 dark:text-white capitalize">
                     {subscriptionDetails.billing_cycle}
                   </span>
                 </div>
@@ -445,7 +444,7 @@ const Settings: React.FC = () => {
 
               {/* Status */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Status</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</span>
                 <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(subscriptionDetails.subscription_status)}`}>
                   {subscriptionDetails.subscription_status.replace('_', ' ').toUpperCase()}
                 </span>
@@ -453,10 +452,10 @@ const Settings: React.FC = () => {
 
               {/* Next Renewal */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Next Renewal</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Next Renewal</span>
                 <div className="flex items-center">
-                  <Calendar className="h-4 w-4 text-gray-500 mr-1" />
-                  <span className="text-sm text-gray-900">
+                  <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400 mr-1" />
+                  <span className="text-sm text-gray-900 dark:text-white">
                     {new Date(subscriptionDetails.next_renewal_date).toLocaleDateString()}
                   </span>
                 </div>
@@ -464,19 +463,19 @@ const Settings: React.FC = () => {
 
               {/* Days Until Renewal */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Days Until Renewal</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Days Until Renewal</span>
                 <span className={`text-sm font-semibold ${
-                  subscriptionDetails.daysUntilRenewal <= 7 ? 'text-orange-600' : 'text-gray-900'
+                  subscriptionDetails.daysUntilRenewal <= 7 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'
                 }`}>
                   {subscriptionDetails.daysUntilRenewal} days
                 </span>
               </div>
 
               {/* Upgrade Button */}
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => setShowUpgradeModal(true)}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium dark:from-blue-600 dark:to-purple-700"
                 >
                   Upgrade Plan
                 </button>
@@ -484,22 +483,22 @@ const Settings: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-sm text-gray-500 mt-2">Loading subscription details...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading subscription details...</p>
             </div>
           )}
         </div>
 
         {/* Organization Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <Building2 className="h-5 w-5 text-gray-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Organization</h2>
+              <Building2 className="h-5 w-5 text-gray-600 dark:text-gray-400 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Organization</h2>
             </div>
             <button
               onClick={() => setIsEditingOrganization(!isEditingOrganization)}
-              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              className="flex items-center px-3 py-1 text-sm bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
             >
               {isEditingOrganization ? <X className="h-4 w-4 mr-1" /> : <Edit2 className="h-4 w-4 mr-1" />}
               {isEditingOrganization ? 'Cancel' : 'Edit'}
@@ -510,8 +509,8 @@ const Settings: React.FC = () => {
           {orgUpdateStatus && (
             <div className={`mb-4 p-3 rounded-lg ${
               orgUpdateStatus.type === 'success' 
-                ? 'bg-green-50 border border-green-200 text-green-800' 
-                : 'bg-red-50 border border-red-200 text-red-800'
+                ? 'bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800/30 dark:text-green-300' 
+                : 'bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800/30 dark:text-red-300'
             }`}>
               {orgUpdateStatus.message}
             </div>
@@ -519,20 +518,20 @@ const Settings: React.FC = () => {
 
           <form onSubmit={handleOrganizationUpdate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Organization Name</label>
               <input
                 type="text"
                 name="organizationName"
                 value={organizationData.organizationName}
                 onChange={handleOrganizationInputChange}
                 readOnly={!isEditingOrganization}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditingOrganization ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Organization Email</label>
               <input
                 type="email"
                 name="email"
@@ -540,13 +539,13 @@ const Settings: React.FC = () => {
                 onChange={handleOrganizationInputChange}
                 readOnly={!isEditingOrganization}
                 placeholder="Organization email"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditingOrganization ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Organization Phone</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Organization Phone</label>
               <input
                 type="tel"
                 name="phone"
@@ -554,13 +553,13 @@ const Settings: React.FC = () => {
                 onChange={handleOrganizationInputChange}
                 readOnly={!isEditingOrganization}
                 placeholder="Organization phone"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditingOrganization ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
               <input
                 type="text"
                 name="address"
@@ -568,8 +567,8 @@ const Settings: React.FC = () => {
                 onChange={handleOrganizationInputChange}
                 readOnly={!isEditingOrganization}
                 placeholder="Organization address"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg ${
-                  isEditingOrganization ? 'bg-white' : 'bg-gray-50'
+                className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg ${
+                  isEditingOrganization ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white'
                 }`}
               />
             </div>
@@ -578,7 +577,7 @@ const Settings: React.FC = () => {
               <button
                 type="submit"
                 disabled={orgLoading}
-                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-blue-700 dark:hover:bg-blue-800"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {orgLoading ? 'Updating...' : 'Save Changes'}
@@ -588,23 +587,23 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Notification Settings */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center mb-4">
-            <Bell className="h-5 w-5 text-gray-600 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+            <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400 mr-2" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h2>
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Rent Due Reminders</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Rent Due Reminders</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Contract Expiry Alerts</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Contract Expiry Alerts</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600" />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Maintenance Updates</span>
-              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Maintenance Updates</span>
+              <input type="checkbox" defaultChecked className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600" />
             </div>
           </div>
         </div>
@@ -623,7 +622,7 @@ const Settings: React.FC = () => {
             </div>
             <button 
               onClick={() => setShowUpgradeModal(true)}
-              className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200"
+              className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
             >
               Upgrade Now
             </button>

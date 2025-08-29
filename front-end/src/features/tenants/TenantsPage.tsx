@@ -92,8 +92,13 @@ const TenantsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5000/api/tenants', {
-        method: 'POST',
+      const url = editingTenant 
+        ? `http://localhost:5000/api/tenants/${editingTenant.id}`
+        : 'http://localhost:5000/api/tenants';
+      const method = editingTenant ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -105,9 +110,13 @@ const TenantsPage: React.FC = () => {
         setEditingTenant(null);
         resetForm();
         fetchTenants();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to save tenant');
       }
     } catch (error) {
-      console.error('Failed to create tenant:', error);
+      console.error('Failed to save tenant:', error);
+      alert('Failed to save tenant');
     }
   };
 
