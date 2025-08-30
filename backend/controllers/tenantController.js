@@ -115,6 +115,34 @@ const getTenantById = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+const getSecurityDeposit = (req, res) => {
+  const tenantId = req.params.id; // this is tenants.id
+
+  const query = `
+    SELECT rc.deposit, pu.deposit as unit_deposit
+    FROM rental_contracts rc
+    JOIN property_units pu ON rc.unit_id = pu.id
+    WHERE rc.tenant_id = ? AND rc.status = 'active'
+    LIMIT 1
+  `;
+
+  db.execute(query, [tenantId])
+    .then(([results]) => {
+      if (results.length === 0) {
+        console.log('[getSecurityDeposit] No deposit found for tenant:', tenantId);
+        return res.json({ securityDeposit: null });
+      }
+
+      const deposit = results[0].deposit || results[0].unit_deposit;
+      console.log('[getSecurityDeposit] Found deposit:', deposit);
+      return res.json({ securityDeposit: deposit });
+    })
+    .catch((err) => {
+      console.error('[getSecurityDeposit] DB error:', err);
+      return res.status(500).json({ message: 'Database error' });
+    });
+};
 const getSecurityDeposit = (req, res) => {
   const tenantId = req.params.id; // this is tenants.id
 
@@ -399,5 +427,6 @@ module.exports = {
   deleteTenant,
   terminateTenant,
   getTerminatedTenants,
+  getSecurityDeposit
   getSecurityDeposit
 };

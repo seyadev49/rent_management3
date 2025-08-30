@@ -470,7 +470,26 @@ const Organizations: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3>
                   <div className="space-y-3 max-h-60 overflow-y-auto">
-                    {selectedOrg.activityLogs.map((log, index) => (
+                    {selectedOrg.activityLogs && selectedOrg.activityLogs.length > 0 ? (
+                      selectedOrg.activityLogs.map((log, index) => (
+                        <div key={index} className="flex justify-between items-start p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {log.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">by {log.user_name}</div>
+                            {log.details && (
+                              <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                                {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400 ml-4">
+                            {new Date(log.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
                       <div key={index} className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{log.action}</div>
@@ -480,7 +499,16 @@ const Organizations: React.FC = () => {
                           {new Date(log.created_at).toLocaleDateString()}
                         </div>
                       </div>
-                    ))}
+                      <div className="text-center py-8">
+                        <div className="text-gray-400 dark:text-gray-500 mb-2">
+                          <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-400">No recent activity</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Activity will appear here when users interact with the system</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

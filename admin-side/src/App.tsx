@@ -56,51 +56,11 @@ function App() {
                 }
               />
               <Route
-                path="/create-organization"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <CreateOrganization />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/create-organization"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <CreateOrganization />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/subscriptions"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <Subscriptions />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/verify-subscriptions"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <SubscriptionVerification />
-                    </Layout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/verify-subscriptions"
-                element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <SubscriptionVerification />
                     </Layout>
                   </ProtectedRoute>
                 }

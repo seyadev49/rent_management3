@@ -52,9 +52,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Dashboard', to: '/dashboard', icon: Home },
     { name: 'Organizations', to: '/organizations', icon: Building2 },
     { name: 'Create Organization', to: '/create-organization', icon: Plus },
-    { name: 'Create Organization', to: '/create-organization', icon: Plus },
     { name: 'Subscriptions', to: '/subscriptions', icon: Users },
-    { name: 'Verify Subscriptions', to: '/verify-subscriptions', icon: CreditCard },
     { name: 'Verify Subscriptions', to: '/verify-subscriptions', icon: CreditCard },
     { name: 'Analytics', to: '/analytics', icon: BarChart3 },
   ];

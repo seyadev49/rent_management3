@@ -75,7 +75,8 @@ const SubscriptionVerification: React.FC = () => {
 
       if (response.ok) {
         await fetchPendingSubscriptions();
-        alert(`Subscription ${action}d successfully`);
+        const actionText = action === 'approve' ? 'approved' : 'rejected';
+        alert(`Subscription ${actionText} successfully`);
       } else {
         const errorData = await response.json();
         alert(errorData.message || `Failed to ${action} subscription`);
