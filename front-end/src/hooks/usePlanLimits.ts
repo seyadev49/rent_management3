@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -61,6 +60,22 @@ export const usePlanLimits = () => {
   }, [token]);
 
   const handleApiError = useCallback((error: any, feature: string): PlanLimitError | null => {
+    // Handle fetch-style errors
+    if (error.response?.status === 403) {
+      const errorData = error.response?.data || {};
+      if (errorData.code === 'PLAN_LIMIT_EXCEEDED') {
+        return {
+          canAccess: false,
+          currentUsage: errorData.currentUsage,
+          limit: errorData.limit,
+          plan: errorData.plan,
+          reason: errorData.code,
+          feature: errorData.feature
+        };
+      }
+    }
+    
+    // Handle axios-style errors (backward compatibility)
     if (error.response?.status === 403 && error.response?.data?.code === 'PLAN_LIMIT_EXCEEDED') {
       return {
         canAccess: false,
@@ -71,6 +86,7 @@ export const usePlanLimits = () => {
         feature: error.response.data.feature
       };
     }
+    
     return null;
   }, []);
 

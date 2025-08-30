@@ -267,6 +267,109 @@ const impersonateUser = async (req, res) => {
   }
 };
 
+// Create new organization with admin user
+const createOrganization = async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    const {
+      organizationName,
+      email,
+      phone,
+      address,
+      adminName,
+      adminEmail,
+      adminPassword,
+      subscriptionPlan,
+      subscriptionStatus
+    } = req.body;
+
+    await connection.query('START TRANSACTION');
+
+    // Check if organization email already exists
+    const [existingOrgs] = await connection.execute(
+      'SELECT id FROM organizations WHERE email = ?',
+      [email]
+    );
+
+    if (existingOrgs.length > 0) {
+      await connection.query('ROLLBACK');
+      return res.status(400).json({ message: 'Organization with this email already exists' });
+    }
+
+    // Check if admin email already exists
+    const [existingUsers] = await connection.execute(
+      'SELECT id FROM users WHERE email = ?',
+      [adminEmail]
+    );
+
+    if (existingUsers.length > 0) {
+      await connection.query('ROLLBACK');
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+
+    // Set trial dates
+    const trialStartDate = new Date();
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialStartDate.getDate() + 7);
+
+    // Create organization
+    const [orgResult] = await connection.execute(
+      `INSERT INTO organizations (name, email, phone, address, trial_start_date, trial_end_date, subscription_status, subscription_plan) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [organizationName, email, phone, address, trialStartDate, trialEndDate, subscriptionStatus, subscriptionPlan]
+    );
+
+    const organizationId = orgResult.insertId;
+
+    // Hash admin password
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+
+    // Create admin user
+    const [userResult] = await connection.execute(
+      'INSERT INTO users (organization_id, email, password, full_name, role) VALUES (?, ?, ?, ?, ?)',
+      [organizationId, adminEmail, hashedPassword, adminName, 'landlord']
+    );
+
+    // Log the action
+    await connection.execute(`
+      INSERT INTO admin_actions (admin_id, action, target_type, target_id, details)
+      VALUES (?, 'organization_created', 'organization', ?, ?)
+    `, [req.user.id, organizationId, JSON.stringify({ 
+      organization_name: organizationName,
+      admin_email: adminEmail,
+      subscription_plan: subscriptionPlan
+    })]);
+
+    await connection.query('COMMIT');
+
+    // Send welcome email (optional)
+    try {
+      const { sendWelcomeEmail } = require('../../services/emailService');
+      await sendWelcomeEmail(adminEmail, adminName, organizationName);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Don't fail the creation if email fails
+    }
+
+    res.status(201).json({
+      message: 'Organization created successfully',
+      organization: {
+        id: organizationId,
+        name: organizationName,
+        email: email,
+        admin_user_id: userResult.insertId
+      }
+    });
+
+  } catch (error) {
+    await connection.query('ROLLBACK');
+    console.error('Create organization error:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    connection.release();
+  }
+};
 module.exports = {
   getAllOrganizations,
   getOrganizationDetails,

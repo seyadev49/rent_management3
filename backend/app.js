@@ -29,7 +29,7 @@ const documentRoutes = require('./routes/document');
 const notificationRoutes = require('./routes/notification');
 const subscriptionRoutes = require('./routes/subscription');
 const reportRoutes = require('./routes/report');
-
+const organizationRoutes = require('./routes/admin/organizationRoutes');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -49,6 +49,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/admin/users', require('./routes/admin/adminUser'));
 app.use('/api/admin/billing', require('./routes/admin/adminBilling'));
 app.use('/api/admin/analytics', require('./routes/admin/adminAnalytics'));
+app.use('/api/admin', organizationRoutes);
 
 // // Schedule notification generation to run daily at 9 AM
 // cron.schedule('0 9 * * *', () => {

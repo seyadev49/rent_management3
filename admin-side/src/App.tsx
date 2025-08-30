@@ -10,13 +10,16 @@ import Dashboard from './pages/Dashboard';
 import Organizations from './pages/Organizations';
 import Subscriptions from './pages/Subscriptions';
 import Analytics from './pages/Analytics';
+import SubscriptionVerification from './pages/SubscriptionVerification';
+import CreateOrganization from './pages/CreateOrganization';
+
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <div className="min-h-screen bg-gray-50">
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -41,11 +44,51 @@ function App() {
                 }
               />
               <Route
+                path="/create-organization"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <CreateOrganization />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-organization"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <CreateOrganization />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/subscriptions"
                 element={
                   <ProtectedRoute>
                     <Layout>
                       <Subscriptions />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/verify-subscriptions"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <SubscriptionVerification />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/verify-subscriptions"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <SubscriptionVerification />
                     </Layout>
                   </ProtectedRoute>
                 }

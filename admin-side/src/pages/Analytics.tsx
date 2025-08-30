@@ -100,23 +100,23 @@ const Analytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-600">Track business performance and metrics</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Analytics</h1>
+          <p className="text-gray-600 dark:text-gray-400">Track business performance and metrics</p>
         </div>
         <select
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
         >
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
@@ -127,12 +127,12 @@ const Analytics: React.FC = () => {
 
       {/* Key Metrics */}
       {overview && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">${overview.monthlyRecurringRevenue}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Monthly Revenue</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">${overview.monthlyRecurringRevenue}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <DollarSign className="h-6 w-6 text-green-600" />
@@ -144,61 +144,61 @@ const Analytics: React.FC = () => {
               ) : (
                 <ArrowDown className="h-4 w-4 text-red-500 mr-1" />
               )}
-              <span className={`text-sm font-medium ${
+              <span className={`text-xs sm:text-sm font-medium ${
                 overview.growthRate >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
                 {Math.abs(overview.growthRate)}%
               </span>
-              <span className="text-sm text-gray-500 ml-1">growth rate</span>
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 ml-1">growth rate</span>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Organizations</p>
-                <p className="text-2xl font-bold text-gray-900">{overview.totalOrganizations}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Total Organizations</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{overview.totalOrganizations}</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
             </div>
             <div className="mt-4">
-              <span className="text-sm text-gray-500">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 {overview.activeOrganizations} active, {overview.trialOrganizations} trial
               </span>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Properties</p>
-                <p className="text-2xl font-bold text-gray-900">{overview.totalProperties}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Total Properties</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{overview.totalProperties}</p>
               </div>
               <div className="p-3 bg-purple-100 rounded-full">
                 <TrendingUp className="h-6 w-6 text-purple-600" />
               </div>
             </div>
             <div className="mt-4">
-              <span className="text-sm text-gray-500">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 {overview.totalTenants} total tenants
               </span>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Transactions</p>
-                <p className="text-2xl font-bold text-gray-900">{overview.totalTransactions}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400">Total Transactions</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{overview.totalTransactions}</p>
               </div>
               <div className="p-3 bg-yellow-100 rounded-full">
                 <BarChart3 className="h-6 w-6 text-yellow-600" />
               </div>
             </div>
             <div className="mt-4">
-              <span className="text-sm text-gray-500">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 ${overview.totalTransactionAmount} total value
               </span>
             </div>
@@ -208,26 +208,26 @@ const Analytics: React.FC = () => {
 
       {/* Revenue Analytics */}
       {revenue && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Revenue</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Daily Revenue</h3>
             <div className="space-y-3">
               {revenue.dailyRevenue.slice(0, 10).map((item, index) => (
                 <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     {new Date(item.date).toLocaleDateString()}
                   </span>
                   <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">${item.revenue}</div>
-                    <div className="text-xs text-gray-500">{item.transactions} transactions</div>
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">${item.revenue}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{item.transactions} transactions</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Plan</h3>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue by Plan</h3>
             <div className="space-y-4">
               {revenue.revenueByPlan.map((plan, index) => {
                 const colors = ['bg-yellow-500', 'bg-purple-500', 'bg-indigo-500'];
@@ -235,11 +235,11 @@ const Analytics: React.FC = () => {
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className={`w-3 h-3 ${colors[index % colors.length]} rounded mr-3`}></div>
-                      <span className="text-sm font-medium text-gray-900 capitalize">{plan.plan_id}</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white capitalize">{plan.plan_id}</span>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">${plan.total_revenue}</div>
-                      <div className="text-xs text-gray-500">{plan.subscribers} subscribers</div>
+                      <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">${plan.total_revenue}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{plan.subscribers} subscribers</div>
                     </div>
                   </div>
                 );
@@ -251,19 +251,19 @@ const Analytics: React.FC = () => {
 
       {/* User Engagement */}
       {engagement && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Most Active Organizations</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Most Active Organizations</h3>
             <div className="space-y-3">
               {engagement.mostActiveOrganizations.slice(0, 5).map((org, index) => (
                 <div key={index} className="flex justify-between items-center">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{org.name}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">{org.name}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
                       Last activity: {new Date(org.last_activity).toLocaleDateString()}
                     </div>
                   </div>
-                  <div className="text-sm font-medium text-blue-600">
+                  <div className="text-xs sm:text-sm font-medium text-blue-600">
                     {org.activity_count} actions
                   </div>
                 </div>
@@ -271,15 +271,15 @@ const Analytics: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Feature Usage</h3>
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Feature Usage</h3>
             <div className="space-y-3">
               {engagement.featureUsage.slice(0, 5).map((feature, index) => (
                 <div key={index} className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-900 capitalize">
+                  <span className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white capitalize">
                     {feature.action.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-sm text-gray-600">{feature.usage_count} times</span>
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{feature.usage_count} times</span>
                 </div>
               ))}
             </div>
@@ -289,13 +289,13 @@ const Analytics: React.FC = () => {
 
       {/* Geographic Distribution */}
       {geographic && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Geographic Distribution</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
             {geographic.geographicDistribution.slice(0, 6).map((region, index) => (
               <div key={index} className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{region.organization_count}</div>
-                <div className="text-sm text-gray-600">{region.region}</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">{region.organization_count}</div>
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{region.region}</div>
               </div>
             ))}
           </div>
@@ -304,11 +304,11 @@ const Analytics: React.FC = () => {
 
       {/* Customer Lifetime Value */}
       {revenue && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Metrics</h3>
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Customer Metrics</h3>
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">${revenue.averageCustomerLifetimeValue}</div>
-            <div className="text-sm text-gray-600">Average Customer Lifetime Value</div>
+            <div className="text-2xl sm:text-3xl font-bold text-green-600">${revenue.averageCustomerLifetimeValue}</div>
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Average Customer Lifetime Value</div>
           </div>
         </div>
       )}
