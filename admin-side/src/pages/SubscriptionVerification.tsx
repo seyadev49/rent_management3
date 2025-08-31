@@ -64,7 +64,7 @@ const SubscriptionVerification: React.FC = () => {
   const handleVerification = async (subscriptionId: number, action: 'approve' | 'reject', reason?: string) => {
     setActionLoading(`${action}-${subscriptionId}`);
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/billing/verify-subscription/${subscriptionId}`, {
+      const response = await fetch(`http://localhost:5000/api/admin/billing/subscriptions/${subscriptionId}/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,35 +89,30 @@ const SubscriptionVerification: React.FC = () => {
     }
   };
 
-  const viewReceipt = (receiptPath: string) => {
-    setSelectedReceipt(receiptPath);
-    setShowReceiptModal(true);
+  const viewReceipt = async (receiptPath: string) => {
+    try {
+      // Create a URL that serves the file directly
+      const receiptUrl = `http://localhost:5000/api/admin/billing/receipts/download?receiptPath=${encodeURIComponent(receiptPath)}`;
+      setSelectedReceipt(receiptUrl);
+      setShowReceiptModal(true);
+    } catch (error) {
+      console.error('Error viewing receipt:', error);
+      alert('Failed to load receipt');
+    }
   };
 
   const downloadReceipt = async (receiptPath: string, organizationName: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admin/billing/download-receipt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ receiptPath }),
-      });
-
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `receipt-${organizationName}-${Date.now()}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
+      const downloadUrl = `http://localhost:5000/api/admin/billing/receipts/download?receiptPath=${encodeURIComponent(receiptPath)}`;
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `receipt-${organizationName}-${Date.now()}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt');
     }
   };
 
@@ -317,26 +312,48 @@ const SubscriptionVerification: React.FC = () => {
             </div>
             <div className="p-4 max-h-[80vh] overflow-auto">
               <div className="flex justify-center">
-                <img
-                  src={`http://localhost:5000/${selectedReceipt}`}
-                  alt="Payment Receipt"
-                  className="max-w-full h-auto rounded-lg shadow-lg"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'text-center py-8';
-                    errorDiv.innerHTML = `
-                      <div class="text-gray-400 mb-2">
-                        <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <p class="text-gray-600">Receipt file cannot be displayed</p>
-                      <p class="text-sm text-gray-500 mt-1">This might be a PDF or unsupported image format</p>
-                    `;
-                    (e.target as HTMLImageElement).parentNode?.appendChild(errorDiv);
-                  }}
-                />
+                {selectedReceipt && (
+                  <div className="w-full">
+                    {selectedReceipt.includes('.pdf') || selectedReceipt.includes('pdf') ? (
+                      <iframe
+                        src={selectedReceipt}
+                        className="w-full h-96 rounded-lg shadow-lg"
+                        title="Payment Receipt PDF"
+                        onError={() => {
+                          console.error('Failed to load PDF in iframe');
+                        }}
+                      />
+                    ) : (
+                      <img
+                        src={selectedReceipt}
+                        alt="Payment Receipt"
+                        className="max-w-full h-auto rounded-lg shadow-lg mx-auto"
+                        onLoad={() => {
+                          console.log('Receipt image loaded successfully');
+                        }}
+                        onError={(e) => {
+                          console.error('Failed to load receipt image:', selectedReceipt);
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'text-center py-8';
+                          errorDiv.innerHTML = `
+                            <div class="text-gray-400 dark:text-gray-500 mb-2">
+                              <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <p class="text-gray-600 dark:text-gray-400">Receipt file cannot be displayed</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">File path: ${selectedReceipt}</p>
+                            <button onclick="window.open('${selectedReceipt}', '_blank')" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                              Open in New Tab
+                            </button>
+                          `;
+                          (e.target as HTMLImageElement).parentNode?.appendChild(errorDiv);
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

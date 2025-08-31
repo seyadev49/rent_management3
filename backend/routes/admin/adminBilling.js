@@ -32,9 +32,9 @@ router.post('/organizations/:orgId/subscription', updateOrganizationSubscription
 router.get('/reports', generateBillingReport);
 
 // Verify subscription
-router.post('/verify-subscription/:subscriptionId', verifySubscription);
+router.post('/subscriptions/:subscriptionId/verify', verifySubscription);
 
 // Download receipt
-router.post('/download-receipt', downloadReceipt);
+router.get('/receipts/download', downloadReceipt);
 
 module.exports = router;

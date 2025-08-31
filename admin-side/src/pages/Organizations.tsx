@@ -490,15 +490,6 @@ const Organizations: React.FC = () => {
                         </div>
                       ))
                     ) : (
-                      <div key={index} className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{log.action}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">by {log.user_name}</div>
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(log.created_at).toLocaleDateString()}
-                        </div>
-                      </div>
                       <div className="text-center py-8">
                         <div className="text-gray-400 dark:text-gray-500 mb-2">
                           <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">

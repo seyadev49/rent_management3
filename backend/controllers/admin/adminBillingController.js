@@ -395,20 +395,53 @@ const verifySubscription = async (req, res) => {
 // Download receipt file
 const downloadReceipt = async (req, res) => {
   try {
-    const { receiptPath } = req.body;
+    const { receiptPath } = req.query;
     const fs = require('fs');
     const path = require('path');
 
-    // Construct full file path
-    const fullPath = path.join(__dirname, '../../', receiptPath);
+    if (!receiptPath) {
+      return res.status(400).json({ message: 'Receipt path is required' });
+    }
+
+    // Construct full file path - handle both absolute and relative paths
+    let fullPath;
+    if (path.isAbsolute(receiptPath)) {
+      fullPath = receiptPath;
+    } else {
+      // Remove leading slash if present and join with backend directory
+      const cleanPath = receiptPath.replace(/^\/+/, '');
+      fullPath = path.join(__dirname, '../../', cleanPath);
+    }
+
+    console.log('Attempting to serve file from:', fullPath);
 
     // Check if file exists
     if (!fs.existsSync(fullPath)) {
+      console.log('File not found at:', fullPath);
       return res.status(404).json({ message: 'Receipt file not found' });
     }
 
+    // Get file extension to determine content type
+    const ext = path.extname(fullPath).toLowerCase();
+    let contentType = 'application/octet-stream';
+    
+    if (ext === '.pdf') {
+      contentType = 'application/pdf';
+    } else if (['.jpg', '.jpeg'].includes(ext)) {
+      contentType = 'image/jpeg';
+    } else if (ext === '.png') {
+      contentType = 'image/png';
+    } else if (ext === '.gif') {
+      contentType = 'image/gif';
+    }
+
+    // Set appropriate headers
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'no-cache');
+    
     // Send file
-    res.download(fullPath);
+    res.sendFile(fullPath);
   } catch (error) {
     console.error('Download receipt error:', error);
     res.status(500).json({ message: 'Server error' });
